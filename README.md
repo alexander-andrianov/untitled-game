@@ -1,4 +1,4 @@
-[![styleguide](https://img.shields.io/badge/styleguide-239120?logo=c-sharp)](https://github.com/alexander-andrianov-whitesharx/untitled-game/styleguide.md)
+[![styleguide](https://img.shields.io/badge/styleguide-239120?logo=c-sharp)](https://github.com/alexander-andrianov-whitesharx/untitled-game/blob/main/styleguide.md)
 
 # untitled-game
 

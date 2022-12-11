@@ -19,12 +19,12 @@ namespace Content.Scripts.GameCore.Scenes.Common.Tools
         [SerializeField] private float fadeTime;
         [SerializeField] private TMP_Text loaderText, errorText;
 
-        private void Awake()
+        private async void Awake()
         {
             Instance = this;
             
             DontDestroyOnLoad(gameObject);
-            Toggle(false, instant: true);
+            await Toggle(false, instant: true);
         }
 
         public async Task Toggle(bool on, string text = null, bool instant = false)

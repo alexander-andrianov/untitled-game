@@ -11,32 +11,41 @@ using UnityEngine.UI;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 {
-    public class CreateLobbyLayout : LayoutBase, ILayout
+    public class LobbyLayout : LayoutBase, ILayout
     {
-        [Header("TEXTS")] 
-        [SerializeField] private TextMeshProUGUI lobbyName;
+        [Header("TEXT")] 
+        [SerializeField] private TextMeshProUGUI lobbyTitle;
+        
         [Header("BUTTONS")] 
-        [SerializeField] private Button createButton;
+        [SerializeField] private Button readyButton;
+        [SerializeField] private Button playButton;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
-        private readonly Subject<LobbyData> onCreate = new Subject<LobbyData>();
+        private readonly Subject<Unit> onReady = new Subject<Unit>();
+        private readonly Subject<Unit> onPlay = new Subject<Unit>();
 
-        private LobbyData currentLobbyData;
         private Transform buttonsLayout;
-
-        public IObservable<LobbyData> OnCreate => onCreate;
+        
+        public IObservable<Unit> OnReady => onReady;
+        public IObservable<Unit> OnCreate => onPlay;
 
         internal override void Initialize()
         {
             buttonsLayout = transform.GetChild(0);
 
-            createButton.OnClickAsObservable().Subscribe(_ => HandleCreate(currentLobbyData)).AddTo(disposables);
+            readyButton.OnClickAsObservable().Subscribe(HandleReady).AddTo(disposables);
+            playButton.OnClickAsObservable().Subscribe(HandlePlay).AddTo(disposables);
         }
 
         private void OnDestroy()
         {
             disposables.Dispose();
+        }
+
+        public void UpdateLobbyData(LobbyData data)
+        {
+            lobbyTitle.text = data.Name;
         }
 
         public async Task SetLayoutVisible(bool value)
@@ -60,14 +69,18 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 
         public void SetButtonsInteractable(bool value)
         {
-            createButton.interactable = value;
+            readyButton.interactable = value;
+            playButton.interactable = value;
+        }
+        
+        private void HandleReady(Unit unit)
+        {
+            onReady.OnNext(unit);
         }
 
-        private void HandleCreate(LobbyData data)
+        private void HandlePlay(Unit unit)
         {
-            data.Name = lobbyName.text;
-            
-            onCreate.OnNext(data);
+            onPlay.OnNext(unit);
         }
     }
 }

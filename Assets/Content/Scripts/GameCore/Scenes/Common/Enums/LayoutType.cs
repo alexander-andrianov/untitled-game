@@ -6,7 +6,7 @@ namespace Content.Scripts.GameCore.Scenes.Common.Enums
         Return,
         Playmode,
         CreateLobby,
-        FindLobby,
+        FindLobby, 
         Lobby
     }
 }

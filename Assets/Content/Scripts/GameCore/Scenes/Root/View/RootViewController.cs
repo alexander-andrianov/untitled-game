@@ -1,12 +1,15 @@
 using System;
 using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base.Interfaces;
+using Content.Scripts.GameCore.Data;
 using Content.Scripts.GameCore.Scenes.Common.Enums;
 using Content.Scripts.GameCore.Scenes.Common.Layouts;
 using Content.Scripts.GameCore.Scenes.Common.Tools;
 using Content.Scripts.GameCore.Scenes.Root.Layouts;
+using Content.Scripts.GameCore.Services;
 using Cysharp.Threading.Tasks;
 using UniRx;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -16,6 +19,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
     {
         private const string LoadingText = "Loading...";
         private const string AuthenticationSceneName = "Authentication";
+        private const string GameSceneName = "Game";
 
         [Header("LAYOUTS")] [SerializeField] private StartLayout startLayout;
 
@@ -26,6 +30,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         [SerializeField] private CreateLobbyLayout createLobbyLayout;
 
         [SerializeField] private FindLobbyLayout findLobbyLayout;
+        
+        [SerializeField] private LobbyLayout lobbyLayout;
 
         [SerializeField] private ReturnLayout returnLayout;
 
@@ -58,17 +64,21 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             playmodeLayout.Initialize();
             settingsLayout.Initialize();
             createLobbyLayout.Initialize();
+            lobbyLayout.Initialize();
             returnLayout.Initialize();
         }
 
         private void InitializeObservableListeners()
         {
-            startLayout.OnPlay.Subscribe(HandlePlay).AddTo(disposables);
-            startLayout.OnSettings.Subscribe(HandleSettings).AddTo(disposables);
+            startLayout.OnPlay.Subscribe(_ => HandleSwitch(LayoutType.Playmode)).AddTo(disposables);
+            startLayout.OnSettings.Subscribe(_ => HandleSwitch(LayoutType.Settings)).AddTo(disposables);
             startLayout.OnExit.Subscribe(HandleExit).AddTo(disposables);
 
-            playmodeLayout.OnCreateLobby.Subscribe(HandleCreateLobby).AddTo(disposables);
-            playmodeLayout.OnFindLobby.Subscribe(HandleFindLobby).AddTo(disposables);
+            playmodeLayout.OnCreateLobby.Subscribe(_ => HandleSwitch(LayoutType.CreateLobby)).AddTo(disposables);
+            playmodeLayout.OnFindLobby.Subscribe(_ => HandleSwitch(LayoutType.FindLobby)).AddTo(disposables);
+
+            createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
+            lobbyLayout.OnCreate.Subscribe(HandleStartGame).AddTo(disposables);
 
             returnLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
         }
@@ -99,46 +109,86 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             await SwitchLayout(targetLayout);
         }
 
-        private async void HandlePlay(Unit unit)
+        private async void HandleSwitch(LayoutType nextLayoutType)
         {
-            await SwitchLayout(LayoutType.Playmode);
+            await SwitchLayout(nextLayoutType);
         }
-
-        private async void HandleSettings(Unit unit)
+        
+        private async void HandleLobbyLayout(LobbyData data)
         {
-            await SwitchLayout(LayoutType.Settings);
-        }
+            var loader = new SceneLoader();
 
-        private async void HandleCreateLobby(Unit unit)
-        {
-            await SwitchLayout(LayoutType.CreateLobby);
-        }
+            using (loader)
+            {
+                try {
+                    await loader.ShowLoader(LoadingText);
+                    await MatchmakingService.CreateLobbyWithAllocation(data);
+                    await HideLayoutView(currentLayout);
+                    
+                    lobbyLayout.UpdateLobbyData(data);
+                    currentLayout = GetLayoutByType(LayoutType.Lobby);
+                    currentLayoutType = LayoutType.Lobby;
 
-        private async void HandleFindLobby(Unit unit)
-        {
-            await SwitchLayout(LayoutType.FindLobby);
+                    NetworkManager.Singleton.StartHost();
+                    
+                    await loader.HideLoader(LoadingText);
+                    await ShowLayoutView(currentLayout);
+                }
+                catch (Exception e) {
+                    Debug.LogError(e);
+                    CanvasUtilities.Instance.ShowError("Failed creating lobby");
+                }
+            }
         }
 
         private async void HandleReturn(Unit unit)
         {
             if (currentLayoutType == LayoutType.Start)
             {
-                using var loader = new SceneLoader();
+                var loader = new SceneLoader();
 
-                await loader.ShowLoader(LoadingText);
-                await SceneManager.LoadSceneAsync(AuthenticationSceneName);
-                await loader.HideLoader(LoadingText);
+                using (loader)
+                {
+                    try
+                    {
+                        await loader.ShowLoader(LoadingText);
+                        await SceneManager.LoadSceneAsync(AuthenticationSceneName);
+                        await loader.HideLoader(LoadingText);
+                    }
+                    catch (Exception e) {
+                        Debug.LogError(e);
+                        CanvasUtilities.Instance.ShowError("Failed to return");
+                    }
+                }
 
                 return;
             }
 
             await ReturnToPreviousLayout();
         }
+        
+        private async void HandleStartGame(Unit unit)
+        {
+            var loader = new SceneLoader();
+
+            using (loader)
+            {
+                try
+                {
+                    await loader.ShowLoader(LoadingText);
+                    await SceneManager.LoadSceneAsync(GameSceneName);
+                    await loader.HideLoader(LoadingText);
+                }
+                catch (Exception e) {
+                    Debug.LogError(e);
+                    CanvasUtilities.Instance.ShowError("Failed to start the game");
+                }
+            }
+        }
 
         private void HandleExit(Unit unit)
         {
             startLayout.SetButtonsInteractable(false);
-
             Application.Quit();
         }
 
@@ -150,6 +200,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 LayoutType.Playmode => LayoutType.Start,
                 LayoutType.CreateLobby => LayoutType.Playmode,
                 LayoutType.FindLobby => LayoutType.Playmode,
+                LayoutType.Lobby => LayoutType.CreateLobby,
                 LayoutType.Settings => LayoutType.Start,
                 _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
             };
@@ -163,6 +214,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 LayoutType.CreateLobby => createLobbyLayout,
                 LayoutType.FindLobby => findLobbyLayout,
                 LayoutType.Start => startLayout,
+                LayoutType.Lobby => lobbyLayout,
                 LayoutType.Settings => settingsLayout,
                 _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
             };

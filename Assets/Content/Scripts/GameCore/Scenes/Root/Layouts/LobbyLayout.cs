@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base;
@@ -46,6 +47,33 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         public void UpdateLobbyData(LobbyData data)
         {
             lobbyTitle.text = data.Name;
+        }
+        
+        public void UpdateLobby(Dictionary<ulong, bool> players)
+        {
+            var allActivePlayerIds = players.Keys;
+
+            // Remove all inactive panels
+            var toDestroy = _playerPanels.Where(p => !allActivePlayerIds.Contains(p.PlayerId)).ToList();
+            foreach (var panel in toDestroy) {
+                _playerPanels.Remove(panel);
+                Destroy(panel.gameObject);
+            }
+
+            foreach (var player in players) {
+                var currentPanel = _playerPanels.FirstOrDefault(p => p.PlayerId == player.Key);
+                if (currentPanel != null) {
+                    if (player.Value) currentPanel.SetReady();
+                }
+                else {
+                    var panel = Instantiate(_playerPanelPrefab, _playerPanelParent);
+                    panel.Init(player.Key);
+                    _playerPanels.Add(panel);
+                }
+            }
+
+            _startButton.SetActive(NetworkManager.Singleton.IsHost && players.All(p => p.Value));
+            _readyButton.SetActive(!_ready);
         }
 
         public async Task SetLayoutVisible(bool value)

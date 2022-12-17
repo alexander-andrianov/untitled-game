@@ -95,6 +95,32 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         private async Task SwitchLayout(LayoutType layoutType)
         {
+            // TO REFACTOR
+            if (currentLayout == lobbyLayout)
+            {
+                var loader = new SceneLoader();
+
+                using (loader)
+                {
+                    try {
+                        await loader.ShowLoader(LoadingText);
+                        await HideLayoutView(currentLayout);
+                        await loader.HideLoader(LoadingText);
+                        
+                        currentLayout = GetLayoutByType(layoutType);
+                        currentLayoutType = layoutType;
+
+                        await ShowLayoutView(currentLayout);
+                    }
+                    catch (Exception e) {
+                        Debug.LogError(e);
+                        CanvasUtilities.Instance.ShowError("Failed to return to previous layout");
+                    }
+                }
+
+                return;
+            }
+            
             await HideLayoutView(currentLayout);
 
             currentLayout = GetLayoutByType(layoutType);

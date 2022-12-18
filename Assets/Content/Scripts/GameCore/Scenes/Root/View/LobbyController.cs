@@ -11,8 +11,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 {
     public class LobbyController : NetworkBehaviour
     {
-        private const string LeavingLobbyText = "Leaving...";
-
         private readonly CompositeDisposable disposables = new();
         private readonly Dictionary<ulong, bool> playersInLobby = new();
 
@@ -43,8 +41,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         public override void OnNetworkSpawn()
         {
+            Debug.Log("NETWORK SPAWNED");
             if (IsServer)
             {
+                Debug.Log("NETWORK SERVER");
+
                 NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
                 playersInLobby.Add(NetworkManager.Singleton.LocalClientId, false);
                 UpdateInterface();
@@ -52,6 +53,12 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
             // Client uses this in case host destroys the lobby
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectCallback;
+        }
+        
+        public void ClearPlayers()
+        {
+            playersInLobby.Clear();
+            UpdateInterface();
         }
 
         private void InitializeObservableListeners()
@@ -97,18 +104,14 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             {
                 try
                 {
-                    await loader.ShowLoader(LeavingLobbyText);
-
-                    playersInLobby.Clear();
+                    ClearPlayers();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
-
-                    await loader.HideLoader(LeavingLobbyText);
                 }
                 catch (Exception e)
                 {
                     Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed creating lobby");
+                    CanvasUtilities.Instance.ShowError("Failed leaving lobby");
                 }
             }
         }
@@ -130,7 +133,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         private void UpdateInterface()
         {
-            // LobbyPlayersUpdated?.Invoke(playersInLobby);
+            lobbyLayout.UpdateLobby(playersInLobby);
         }
 
         [ServerRpc(RequireOwnership = false)]

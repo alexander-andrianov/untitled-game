@@ -18,22 +18,21 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
     public class RootViewController : MonoBehaviour
     {
         private const string LoadingText = "Loading...";
+        private const string LeavingLobbyText = "Leaving...";
         private const string AuthenticationSceneName = "Authentication";
         private const string GameSceneName = "Game";
 
-        [Header("LAYOUTS")] [SerializeField] private StartLayout startLayout;
-
+        [Header("LAYOUTS")] 
+        [SerializeField] private StartLayout startLayout;
         [SerializeField] private PlaymodeLayout playmodeLayout;
-
         [SerializeField] private SettingsLayout settingsLayout;
-
         [SerializeField] private CreateLobbyLayout createLobbyLayout;
-
         [SerializeField] private FindLobbyLayout findLobbyLayout;
-        
         [SerializeField] private LobbyLayout lobbyLayout;
-
         [SerializeField] private ReturnLayout returnLayout;
+
+        [Header("CONTROLLERS")] 
+        [SerializeField] private LobbyController lobbyController;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
@@ -103,10 +102,15 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 using (loader)
                 {
                     try {
-                        await loader.ShowLoader(LoadingText);
-                        await HideLayoutView(currentLayout);
-                        await loader.HideLoader(LoadingText);
+                        await loader.ShowLoader(LeavingLobbyText);
                         
+                        lobbyController.ClearPlayers();
+                        NetworkManager.Singleton.Shutdown();
+                        await MatchmakingService.LeaveLobby();
+                        
+                        await HideLayoutView(currentLayout);
+                        await loader.HideLoader(LeavingLobbyText);
+
                         currentLayout = GetLayoutByType(layoutType);
                         currentLayoutType = layoutType;
 
@@ -154,11 +158,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                     lobbyLayout.UpdateLobbyData(data);
                     currentLayout = GetLayoutByType(LayoutType.Lobby);
                     currentLayoutType = LayoutType.Lobby;
-
-                    NetworkManager.Singleton.StartHost();
                     
-                    await loader.HideLoader(LoadingText);
                     await ShowLayoutView(currentLayout);
+                    
+                    NetworkManager.Singleton.StartHost();
+                    await loader.HideLoader(LoadingText);
                 }
                 catch (Exception e) {
                     Debug.LogError(e);

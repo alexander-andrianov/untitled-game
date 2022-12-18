@@ -1,33 +1,43 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base;
 using Content.Scripts.GameCore.Base.Interfaces;
 using Content.Scripts.GameCore.Data;
+using Content.Scripts.GameCore.Scenes.Root.Other;
 using TMPro;
 using UniRx;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
+using Debug = UnityEngine.Debug;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 {
     public class LobbyLayout : LayoutBase, ILayout
     {
-        [Header("TEXT")] 
-        [SerializeField] private TextMeshProUGUI lobbyTitle;
+        private readonly List<LobbyPlayerPanel> playerPanels = new();
+
+        private readonly CompositeDisposable disposables = new();
+
+        private readonly Subject<Unit> onReady = new();
+        private readonly Subject<Unit> onPlay = new();
         
-        [Header("BUTTONS")] 
-        [SerializeField] private Button readyButton;
+        [Header("TEXT")] [SerializeField] private TextMeshProUGUI lobbyTitle;
+
+        [Header("BUTTONS")] [SerializeField] private Button readyButton;
         [SerializeField] private Button playButton;
-
-        private readonly CompositeDisposable disposables = new CompositeDisposable();
-
-        private readonly Subject<Unit> onReady = new Subject<Unit>();
-        private readonly Subject<Unit> onPlay = new Subject<Unit>();
+        
+        [SerializeField] private LobbyPlayerPanel playerPanelPrefab;
+        [SerializeField] private Transform playerPanelParent;
 
         private Transform buttonsLayout;
-        
+
+        private bool everyoneReady;
+        private bool ready;
+
         public IObservable<Unit> OnReady => onReady;
         public IObservable<Unit> OnCreate => onPlay;
 
@@ -41,39 +51,51 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 
         private void OnDestroy()
         {
-            disposables.Dispose();
+            disposables?.Dispose();
         }
 
         public void UpdateLobbyData(LobbyData data)
         {
             lobbyTitle.text = data.Name;
         }
-        
+
         public void UpdateLobby(Dictionary<ulong, bool> players)
         {
             var allActivePlayerIds = players.Keys;
 
             // Remove all inactive panels
-            var toDestroy = _playerPanels.Where(p => !allActivePlayerIds.Contains(p.PlayerId)).ToList();
-            foreach (var panel in toDestroy) {
-                _playerPanels.Remove(panel);
+            var toDestroy = playerPanels.Where(p => !allActivePlayerIds.Contains(p.PlayerId)).ToList();
+            
+            foreach (var panel in toDestroy)
+            {
+                playerPanels.Remove(panel);
                 Destroy(panel.gameObject);
             }
 
-            foreach (var player in players) {
-                var currentPanel = _playerPanels.FirstOrDefault(p => p.PlayerId == player.Key);
-                if (currentPanel != null) {
+            foreach (var player in players)
+            {
+                var currentPanel = playerPanels.FirstOrDefault(p => p.PlayerId == player.Key);
+
+                if (currentPanel != null)
+                {
                     if (player.Value) currentPanel.SetReady();
                 }
-                else {
-                    var panel = Instantiate(_playerPanelPrefab, _playerPanelParent);
-                    panel.Init(player.Key);
-                    _playerPanels.Add(panel);
+                else
+                {
+                    var panel = Instantiate(playerPanelPrefab, playerPanelParent);
+                    
+                    panel.Initialize(player.Key);
+                    playerPanels.Add(panel);
                 }
             }
 
-            _startButton.SetActive(NetworkManager.Singleton.IsHost && players.All(p => p.Value));
-            _readyButton.SetActive(!_ready);
+            UpdateButtons(players);
+        }
+
+        private void UpdateButtons(Dictionary<ulong, bool> players)
+        {
+            playButton.gameObject.SetActive(NetworkManager.Singleton.IsHost && players.All(p => p.Value));
+            readyButton.gameObject.SetActive(!ready);
         }
 
         public async Task SetLayoutVisible(bool value)
@@ -100,7 +122,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
             readyButton.interactable = value;
             playButton.interactable = value;
         }
-        
+
         private void HandleReady(Unit unit)
         {
             onReady.OnNext(unit);

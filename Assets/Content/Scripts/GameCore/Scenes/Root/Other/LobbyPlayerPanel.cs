@@ -13,9 +13,17 @@ namespace Content.Scripts.GameCore.Scenes.Root.Other
             nameText.text = $"Player {playerId}";
         }
 
-        public void SetReady() {
-            statusText.text = "Ready";
-            statusText.color = Color.green;
+        public void UpdateReadyButton(bool isReady) {
+            if (isReady)
+            {
+                statusText.text = "Ready";
+                statusText.color = Color.green;
+            }
+            else
+            {
+                statusText.text = "Waiting";
+                statusText.color = Color.red;
+            }
         }
     }
 }

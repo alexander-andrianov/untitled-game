@@ -21,8 +21,6 @@ namespace Content.Scripts.GameCore.Services
 
         private static Lobby currentLobby;
         private static CancellationTokenSource heartbeatSource, updateLobbySource;
-        
-        public static event Action<Lobby> CurrentLobbyRefreshed;
 
         private static UnityTransport Transport {
             get => transport != null ? transport : transport = Object.FindObjectOfType<UnityTransport>();
@@ -48,6 +46,22 @@ namespace Content.Scripts.GameCore.Services
             Heartbeat();
             PeriodicallyRefreshLobby();
         }
+        
+        // Obviously you'd want to add customization to the query, but this
+        // will suffice for this simple demo
+        public static async Task<List<Lobby>> GatherLobbies() {
+            var options = new QueryLobbiesOptions {
+                Count = 15,
+
+                Filters = new List<QueryFilter> {
+                    new(QueryFilter.FieldOptions.AvailableSlots, "0", QueryFilter.OpOptions.GT),
+                    new(QueryFilter.FieldOptions.IsLocked, "0", QueryFilter.OpOptions.EQ)
+                }
+            };
+
+            var allLobbies = await Lobbies.Instance.QueryLobbiesAsync(options);
+            return allLobbies.Results;
+        }
 
         private static async void Heartbeat() {
             heartbeatSource = new CancellationTokenSource();
@@ -57,6 +71,15 @@ namespace Content.Scripts.GameCore.Services
                 await Task.Delay(HeartbeatInterval * 1000);
             }
         }
+        
+        public static async Task JoinLobbyWithAllocation(string lobbyId) {
+            currentLobby = await Lobbies.Instance.JoinLobbyByIdAsync(lobbyId);
+            var a = await RelayService.Instance.JoinAllocationAsync(currentLobby.Data[Constants.JoinKey].Value);
+
+            Transport.SetClientRelayData(a.RelayServer.IpV4, (ushort)a.RelayServer.Port, a.AllocationIdBytes, a.Key, a.ConnectionData, a.HostConnectionData);
+
+            PeriodicallyRefreshLobby();
+        }
 
         private static async void PeriodicallyRefreshLobby() {
             updateLobbySource = new CancellationTokenSource();
@@ -65,8 +88,7 @@ namespace Content.Scripts.GameCore.Services
             
             while (!updateLobbySource.IsCancellationRequested && currentLobby != null) {
                 currentLobby = await Lobbies.Instance.GetLobbyAsync(currentLobby.Id);
-                CurrentLobbyRefreshed?.Invoke(currentLobby);
-                
+
                 await Task.Delay(LobbyRefreshRate * 1000);
             }
         }

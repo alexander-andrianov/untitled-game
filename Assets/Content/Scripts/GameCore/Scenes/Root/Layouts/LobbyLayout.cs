@@ -62,8 +62,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         public void UpdateLobby(Dictionary<ulong, bool> players)
         {
             var allActivePlayerIds = players.Keys;
-
-            // Remove all inactive panels
             var toDestroy = playerPanels.Where(p => !allActivePlayerIds.Contains(p.PlayerId)).ToList();
             
             foreach (var panel in toDestroy)
@@ -78,7 +76,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 
                 if (currentPanel != null)
                 {
-                    if (player.Value) currentPanel.SetReady();
+                    currentPanel.UpdateReadyButton(player.Value);
                 }
                 else
                 {
@@ -94,7 +92,9 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 
         private void UpdateButtons(Dictionary<ulong, bool> players)
         {
-            playButton.gameObject.SetActive(NetworkManager.Singleton.IsHost && players.All(p => p.Value));
+            var allPlayersReady = NetworkManager.Singleton.IsHost && players.All(p => p.Value);
+            
+            playButton.gameObject.SetActive(allPlayersReady);
             readyButton.gameObject.SetActive(!ready);
         }
 

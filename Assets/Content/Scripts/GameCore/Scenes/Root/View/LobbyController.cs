@@ -32,7 +32,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             }
         }
 
-        private void Start()
+        private void OnEnable()
         {
             InitializeObservableListeners();
 
@@ -41,11 +41,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         public override void OnNetworkSpawn()
         {
-            Debug.Log("NETWORK SPAWNED");
             if (IsServer)
             {
-                Debug.Log("NETWORK SERVER");
-
                 NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
                 playersInLobby.Add(NetworkManager.Singleton.LocalClientId, false);
                 UpdateInterface();
@@ -105,6 +102,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 try
                 {
                     ClearPlayers();
+                    DisableAllListeners();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
                 }
@@ -128,7 +126,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         {
             // updated for all players in lobby
             SetReadyServerRpc(NetworkManager.Singleton.LocalClientId);
-            Debug.Log("Changing ready button state");
         }
 
         private void UpdateInterface()
@@ -136,10 +133,18 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             lobbyLayout.UpdateLobby(playersInLobby);
         }
 
+        private void DisableAllListeners()
+        {
+            if (!IsServer) return;
+            
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnectCallback;
+        }
+
         [ServerRpc(RequireOwnership = false)]
         private void SetReadyServerRpc(ulong playerId)
         {
-            playersInLobby[playerId] = true;
+            playersInLobby[playerId] = !playersInLobby[playerId];
 
             PropagateToClients();
             UpdateInterface();

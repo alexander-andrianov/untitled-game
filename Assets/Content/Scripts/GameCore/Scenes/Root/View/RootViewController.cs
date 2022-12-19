@@ -10,6 +10,7 @@ using Content.Scripts.GameCore.Services;
 using Cysharp.Threading.Tasks;
 using UniRx;
 using Unity.Netcode;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -22,8 +23,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         private const string AuthenticationSceneName = "Authentication";
         private const string GameSceneName = "Game";
 
-        [Header("LAYOUTS")] 
-        [SerializeField] private StartLayout startLayout;
+        [Header("LAYOUTS")] [SerializeField] private StartLayout startLayout;
         [SerializeField] private PlaymodeLayout playmodeLayout;
         [SerializeField] private SettingsLayout settingsLayout;
         [SerializeField] private CreateLobbyLayout createLobbyLayout;
@@ -33,6 +33,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         [Header("CONTROLLERS")] 
         [SerializeField] private LobbyController lobbyController;
+        [SerializeField] private FindLobbyController findLobbyController;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
@@ -64,6 +65,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             settingsLayout.Initialize();
             createLobbyLayout.Initialize();
             lobbyLayout.Initialize();
+            findLobbyLayout.Initialize();
             returnLayout.Initialize();
         }
 
@@ -78,6 +80,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
             createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
             lobbyLayout.OnCreate.Subscribe(HandleStartGame).AddTo(disposables);
+
+            findLobbyController.OnConnect.Subscribe(HandleConnectToLobby).AddTo(disposables);
 
             returnLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
         }
@@ -101,13 +105,14 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
                 using (loader)
                 {
-                    try {
+                    try
+                    {
                         await loader.ShowLoader(LeavingLobbyText);
-                        
+
                         lobbyController.ClearPlayers();
                         NetworkManager.Singleton.Shutdown();
                         await MatchmakingService.LeaveLobby();
-                        
+
                         await HideLayoutView(currentLayout);
                         await loader.HideLoader(LeavingLobbyText);
 
@@ -116,7 +121,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
                         await ShowLayoutView(currentLayout);
                     }
-                    catch (Exception e) {
+                    catch (Exception e)
+                    {
                         Debug.LogError(e);
                         CanvasUtilities.Instance.ShowError("Failed to return to previous layout");
                     }
@@ -124,7 +130,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
                 return;
             }
-            
+
             await HideLayoutView(currentLayout);
 
             currentLayout = GetLayoutByType(layoutType);
@@ -143,28 +149,30 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         {
             await SwitchLayout(nextLayoutType);
         }
-        
+
         private async void HandleLobbyLayout(LobbyData data)
         {
             var loader = new SceneLoader();
 
             using (loader)
             {
-                try {
+                try
+                {
                     await loader.ShowLoader(LoadingText);
                     await MatchmakingService.CreateLobbyWithAllocation(data);
                     await HideLayoutView(currentLayout);
-                    
+
                     lobbyLayout.UpdateLobbyData(data);
                     currentLayout = GetLayoutByType(LayoutType.Lobby);
                     currentLayoutType = LayoutType.Lobby;
-                    
+
                     await ShowLayoutView(currentLayout);
-                    
+
                     NetworkManager.Singleton.StartHost();
                     await loader.HideLoader(LoadingText);
                 }
-                catch (Exception e) {
+                catch (Exception e)
+                {
                     Debug.LogError(e);
                     CanvasUtilities.Instance.ShowError("Failed creating lobby");
                 }
@@ -185,7 +193,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                         await SceneManager.LoadSceneAsync(AuthenticationSceneName);
                         await loader.HideLoader(LoadingText);
                     }
-                    catch (Exception e) {
+                    catch (Exception e)
+                    {
                         Debug.LogError(e);
                         CanvasUtilities.Instance.ShowError("Failed to return");
                     }
@@ -196,7 +205,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
             await ReturnToPreviousLayout();
         }
-        
+
         private async void HandleStartGame(Unit unit)
         {
             var loader = new SceneLoader();
@@ -209,9 +218,39 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                     await SceneManager.LoadSceneAsync(GameSceneName);
                     await loader.HideLoader(LoadingText);
                 }
-                catch (Exception e) {
+                catch (Exception e)
+                {
                     Debug.LogError(e);
                     CanvasUtilities.Instance.ShowError("Failed to start the game");
+                }
+            }
+        }
+
+        private async void HandleConnectToLobby(Lobby lobby)
+        {
+            var loader = new SceneLoader();
+
+            using (loader)
+            {
+                try
+                {
+                    await loader.ShowLoader(LoadingText);
+                    await MatchmakingService.JoinLobbyWithAllocation(lobby.Id);
+
+                    await HideLayoutView(currentLayout);
+
+                    currentLayout = GetLayoutByType(LayoutType.Lobby);
+                    currentLayoutType = LayoutType.Lobby;
+
+                    await ShowLayoutView(currentLayout);
+
+                    NetworkManager.Singleton.StartClient();
+                    await loader.HideLoader(LoadingText);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                    CanvasUtilities.Instance.ShowError("Failed joining lobby");
                 }
             }
         }

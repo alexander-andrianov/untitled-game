@@ -6,11 +6,15 @@ using Content.Scripts.GameCore.Services;
 using UniRx;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Content.Scripts.GameCore.Scenes.Root.View
 {
     public class LobbyController : NetworkBehaviour
     {
+        private const string LoadingGameText = "Loading game...";
+        private const string GameSceneName = "Game";
+        
         private readonly CompositeDisposable disposables = new();
         private readonly Dictionary<ulong, bool> playersInLobby = new();
 
@@ -61,6 +65,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         private void InitializeObservableListeners()
         {
             lobbyLayout.OnReady.Subscribe(HandleReadyButton).AddTo(disposables);
+            lobbyLayout.OnPlay.Subscribe(HandlePlayButton).AddTo(disposables);
         }
 
         private void OnClientConnectedCallback(ulong playerId)
@@ -126,6 +131,29 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         {
             // updated for all players in lobby
             SetReadyServerRpc(NetworkManager.Singleton.LocalClientId);
+        }
+        
+        private async void HandlePlayButton(Unit unit)
+        {
+            var loader = new SceneLoader();
+
+            using (loader)
+            {
+                try
+                {
+                    await loader.ShowLoader(LoadingGameText);
+                    
+                    await MatchmakingService.LockLobby();
+                    NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
+                    
+                    await loader.HideLoader(LoadingGameText);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                    CanvasUtilities.Instance.ShowError("Failed to start the game");
+                }
+            }
         }
 
         private void UpdateInterface()

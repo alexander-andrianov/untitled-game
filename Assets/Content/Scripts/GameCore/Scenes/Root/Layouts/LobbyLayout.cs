@@ -39,7 +39,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         private bool ready;
 
         public IObservable<Unit> OnReady => onReady;
-        public IObservable<Unit> OnCreate => onPlay;
+        public IObservable<Unit> OnPlay => onPlay;
 
         internal override void Initialize()
         {

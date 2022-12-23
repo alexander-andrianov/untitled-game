@@ -79,8 +79,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             playmodeLayout.OnFindLobby.Subscribe(_ => HandleSwitch(LayoutType.FindLobby)).AddTo(disposables);
 
             createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
-            lobbyLayout.OnCreate.Subscribe(HandleStartGame).AddTo(disposables);
-
             findLobbyController.OnConnect.Subscribe(HandleConnectToLobby).AddTo(disposables);
 
             returnLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
@@ -204,26 +202,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             }
 
             await ReturnToPreviousLayout();
-        }
-
-        private async void HandleStartGame(Unit unit)
-        {
-            var loader = new SceneLoader();
-
-            using (loader)
-            {
-                try
-                {
-                    await loader.ShowLoader(LoadingText);
-                    await SceneManager.LoadSceneAsync(GameSceneName);
-                    await loader.HideLoader(LoadingText);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed to start the game");
-                }
-            }
         }
 
         private async void HandleConnectToLobby(Lobby lobby)

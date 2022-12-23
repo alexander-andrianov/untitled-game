@@ -6,18 +6,19 @@ using Content.Scripts.GameCore.Services;
 using UniRx;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Content.Scripts.GameCore.Scenes.Root.View
 {
     public class LobbyController : NetworkBehaviour
     {
-        private const string LeavingLobbyText = "Leaving...";
+        private const string LoadingGameText = "Loading game...";
+        private const string GameSceneName = "Game";
+        
+        private readonly CompositeDisposable disposables = new();
+        private readonly Dictionary<ulong, bool> playersInLobby = new();
 
         [SerializeField] private LobbyLayout lobbyLayout;
-
-        private readonly CompositeDisposable disposables = new CompositeDisposable();
-
-        private readonly Dictionary<ulong, bool> playersInLobby = new();
 
         private void OnDisable()
         {
@@ -35,16 +36,50 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             }
         }
 
-        private void Start()
+        private void OnEnable()
         {
             InitializeObservableListeners();
 
             NetworkObject.DestroyWithScene = true;
         }
 
+        public override void OnNetworkSpawn()
+        {
+            if (IsServer)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
+                playersInLobby.Add(NetworkManager.Singleton.LocalClientId, false);
+                UpdateInterface();
+            }
+
+            // Client uses this in case host destroys the lobby
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectCallback;
+        }
+        
+        public void ClearPlayers()
+        {
+            playersInLobby.Clear();
+            UpdateInterface();
+        }
+
         private void InitializeObservableListeners()
         {
             lobbyLayout.OnReady.Subscribe(HandleReadyButton).AddTo(disposables);
+            lobbyLayout.OnPlay.Subscribe(HandlePlayButton).AddTo(disposables);
+        }
+
+        private void OnClientConnectedCallback(ulong playerId)
+        {
+            if (!IsServer) return;
+
+            // Add locally
+            if (!playersInLobby.ContainsKey(playerId))
+            {
+                playersInLobby.Add(playerId, false);
+            }
+
+            PropagateToClients();
+            UpdateInterface();
         }
 
         private void OnClientDisconnectCallback(ulong playerId)
@@ -71,38 +106,104 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             {
                 try
                 {
-                    await loader.ShowLoader(LeavingLobbyText);
-
-                    playersInLobby.Clear();
+                    ClearPlayers();
+                    DisableAllListeners();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
-
-                    await loader.HideLoader(LeavingLobbyText);
                 }
                 catch (Exception e)
                 {
                     Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed creating lobby");
+                    CanvasUtilities.Instance.ShowError("Failed leaving lobby");
                 }
+            }
+        }
+
+        private void PropagateToClients()
+        {
+            foreach (var player in playersInLobby)
+            {
+                UpdatePlayerClientRpc(player.Key, player.Value);
             }
         }
 
         private void HandleReadyButton(Unit unit)
         {
             // updated for all players in lobby
-            Debug.Log("Changing ready button state");
+            SetReadyServerRpc(NetworkManager.Singleton.LocalClientId);
+        }
+        
+        private async void HandlePlayButton(Unit unit)
+        {
+            var loader = new SceneLoader();
+
+            using (loader)
+            {
+                try
+                {
+                    await loader.ShowLoader(LoadingGameText);
+                    
+                    await MatchmakingService.LockLobby();
+                    NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
+                    
+                    await loader.HideLoader(LoadingGameText);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                    CanvasUtilities.Instance.ShowError("Failed to start the game");
+                }
+            }
         }
 
         private void UpdateInterface()
         {
-            // LobbyPlayersUpdated?.Invoke(playersInLobby);
+            lobbyLayout.UpdateLobby(playersInLobby);
+        }
+
+        private void DisableAllListeners()
+        {
+            if (!IsServer) return;
+            
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnectCallback;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SetReadyServerRpc(ulong playerId)
+        {
+            playersInLobby[playerId] = !playersInLobby[playerId];
+
+            PropagateToClients();
+            UpdateInterface();
+        }
+
+        [ClientRpc]
+        private void UpdatePlayerClientRpc(ulong clientId, bool isReady)
+        {
+            if (IsServer) return;
+
+            if (!playersInLobby.ContainsKey(clientId))
+            {
+                playersInLobby.Add(clientId, isReady);
+            }
+            else
+            {
+                playersInLobby[clientId] = isReady;
+            }
+
+            UpdateInterface();
         }
 
         [ClientRpc]
         private void RemovePlayerClientRpc(ulong clientId)
         {
             if (IsServer) return;
-            if (playersInLobby.ContainsKey(clientId)) playersInLobby.Remove(clientId);
+
+            if (playersInLobby.ContainsKey(clientId))
+            {
+                playersInLobby.Remove(clientId);
+            }
 
             UpdateInterface();
         }

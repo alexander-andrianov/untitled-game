@@ -13,26 +13,20 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
     {
         [Header("BUTTONS")]
         [SerializeField] 
-        private Button connectButton;
-        
-        [SerializeField] 
         private Button refreshButton;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
-        private readonly Subject<Unit> onConnect = new Subject<Unit>();
         private readonly Subject<Unit> onRefresh = new Subject<Unit>();
         
         private Transform buttonsLayout;
 
-        public IObservable<Unit> OnConnect => onConnect;
         public IObservable<Unit> OnRefresh => onRefresh;
 
         internal override void Initialize()
         {
             buttonsLayout = transform.GetChild(0);
             
-            connectButton.OnClickAsObservable().Subscribe(HandleConnect).AddTo(disposables);
             refreshButton.OnClickAsObservable().Subscribe(HandleRefresh).AddTo(disposables);
         }
 
@@ -60,18 +54,14 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
             }
         }
         
-        public void SetButtonsInteractable(bool value) {
-            connectButton.interactable = value;
+        public void SetButtonsInteractable(bool value)
+        {
+            refreshButton.interactable = value;
         }
 
-        private void HandleConnect(Unit unit)
-        {
-            onConnect.OnNext(unit);
-        }
-        
         private void HandleRefresh(Unit unit)
         {
-            onConnect.OnNext(unit);
+            onRefresh.OnNext(unit);
         }
     }
 }

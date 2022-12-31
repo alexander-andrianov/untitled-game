@@ -23,6 +23,11 @@ namespace Content.Scripts.GameCore.Services
         private static Lobby currentLobby;
         private static CancellationTokenSource heartbeatSource, updateLobbySource;
 
+        public static Lobby GetCurrentLobby()
+        {
+            return currentLobby;
+        }
+
         private static UnityTransport Transport
         {
             get => transport != null ? transport : transport = Object.FindObjectOfType<UnityTransport>();

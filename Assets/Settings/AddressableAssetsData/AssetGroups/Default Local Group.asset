@@ -25,6 +25,10 @@ MonoBehaviour:
     m_Address: NetworkingManager
     m_ReadOnly: 0
     m_SerializedLabels: []
+  - m_GUID: c2967285a66a12543a90f9d52f008f39
+    m_Address: ChatManager
+    m_ReadOnly: 0
+    m_SerializedLabels: []
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 21cc9fe454c93404a97f32be1f8c4ede, type: 2}
   m_SchemaSet:

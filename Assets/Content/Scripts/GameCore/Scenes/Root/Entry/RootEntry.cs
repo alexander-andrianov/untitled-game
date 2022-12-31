@@ -1,4 +1,5 @@
 using Content.Scripts.GameCore.Scenes.Root.View;
+using Content.Scripts.GameCore.Scenes.Root.Views;
 using UnityEngine;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Entry

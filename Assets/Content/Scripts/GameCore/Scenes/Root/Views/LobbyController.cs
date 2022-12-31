@@ -8,22 +8,17 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Content.Scripts.GameCore.Scenes.Root.View
+namespace Content.Scripts.GameCore.Scenes.Root.Views
 {
     public class LobbyController : NetworkBehaviour
     {
         private const string LoadingGameText = "Loading game...";
         private const string GameSceneName = "Game";
-        
+
         private readonly CompositeDisposable disposables = new();
         private readonly Dictionary<ulong, bool> playersInLobby = new();
 
         [SerializeField] private LobbyLayout lobbyLayout;
-
-        private void OnDisable()
-        {
-            OnLobbyLeft();
-        }
 
         public override void OnDestroy()
         {
@@ -55,7 +50,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             // Client uses this in case host destroys the lobby
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectCallback;
         }
-        
+
         public void ClearPlayers()
         {
             playersInLobby.Clear();
@@ -132,27 +127,24 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             // updated for all players in lobby
             SetReadyServerRpc(NetworkManager.Singleton.LocalClientId);
         }
-        
+
         private async void HandlePlayButton(Unit unit)
         {
-            var loader = new SceneLoader();
-
-            using (loader)
+            using var loader = new SceneLoader();
+            
+            try
             {
-                try
-                {
-                    await loader.ShowLoader(LoadingGameText);
-                    
-                    await MatchmakingService.LockLobby();
-                    NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
-                    
-                    await loader.HideLoader(LoadingGameText);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed to start the game");
-                }
+                await loader.ShowLoader(LoadingGameText);
+
+                await MatchmakingService.LockLobby();
+                NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
+
+                await loader.HideLoader(LoadingGameText);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+                CanvasUtilities.Instance.ShowError("Failed to start the game");
             }
         }
 
@@ -164,7 +156,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
         private void DisableAllListeners()
         {
             if (!IsServer) return;
-            
+
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnectCallback;
         }

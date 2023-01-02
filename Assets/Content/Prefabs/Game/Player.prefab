@@ -222,7 +222,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8232651141040563548}
   - component: {fileID: 8232651141040563546}
-  - component: {fileID: 858493795809171032}
+  - component: {fileID: 221669446194068780}
   - component: {fileID: 8232651141040563549}
   - component: {fileID: 2872846114219985141}
   - component: {fileID: 6128597464100741474}
@@ -264,7 +264,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerLight: {fileID: 8232651140654671242}
---- !u!114 &858493795809171032
+--- !u!114 &221669446194068780
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -273,23 +273,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 8232651141040563551}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df2868252ab5c4d1da357e8f11f1b524, type: 3}
+  m_Script: {fileID: 11500000, guid: 690c7f4aef575434aba7c259bb39abca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  SyncPositionX: 1
-  SyncPositionY: 1
-  SyncPositionZ: 1
-  SyncRotAngleX: 1
-  SyncRotAngleY: 1
-  SyncRotAngleZ: 1
-  SyncScaleX: 0
-  SyncScaleY: 0
-  SyncScaleZ: 0
-  PositionThreshold: 0.001
-  RotAngleThreshold: 0.01
-  ScaleThreshold: 0.01
-  InLocalSpace: 0
-  Interpolate: 1
+  interpolationTime: 0.1
 --- !u!114 &8232651141040563549
 MonoBehaviour:
   m_ObjectHideFlags: 0

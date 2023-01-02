@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using Content.Scripts.Gamecore.Base.Structs;
 using Content.Scripts.GameCore.Scenes.Game.Controllers;
 using Content.Scripts.GameCore.Services;
 using Unity.Netcode;
 using UnityEngine;
+using VivoxUnity;
 
 namespace Content.Scripts.GameCore.Scenes.Game.Entry
 {
@@ -50,6 +52,22 @@ namespace Content.Scripts.GameCore.Scenes.Game.Entry
                 new(-2f, playerParentY, -2f),
                 new(2f, playerParentY, -2f)
             };
+            
+            ChatManager.Instance.LeaveChannel();
+            
+            var channelName = MatchmakingService.GetCurrentLobby().Id;
+            var channelSettings = new ChannelSettings
+            {
+                Name = channelName,
+                Type = ChannelType.Positional,
+                ConnectAudio = true,
+                ConnectText = false,
+                SwitchToThisChannel = true
+            };
+
+            var channel3DProperties = new Channel3DProperties(10, 5, 5, AudioFadeModel.InverseByDistance);
+
+            ChatManager.Instance.JoinPositionalChannel(channelSettings, channel3DProperties);
         }
 
         [ServerRpc(RequireOwnership = false)]

@@ -1,4 +1,4 @@
-namespace Content.Scripts.GameCore.Data
+namespace Content.Scripts.Networking.Data
 {
     public struct Constants {
         public const int MaxPlayers = 4;

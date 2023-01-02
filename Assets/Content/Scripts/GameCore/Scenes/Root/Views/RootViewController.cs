@@ -1,13 +1,13 @@
 using System;
 using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base.Interfaces;
-using Content.Scripts.GameCore.Data;
 using Content.Scripts.GameCore.Scenes.Common.Enums;
 using Content.Scripts.GameCore.Scenes.Common.Layouts;
 using Content.Scripts.GameCore.Scenes.Common.Tools;
 using Content.Scripts.GameCore.Scenes.Root.Layouts;
 using Content.Scripts.GameCore.Scenes.Root.View;
 using Content.Scripts.GameCore.Services;
+using Content.Scripts.Networking.Data;
 using Cysharp.Threading.Tasks;
 using UniRx;
 using Unity.Netcode;
@@ -98,7 +98,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         private async Task SwitchLayout(LayoutType layoutType)
         {
             // TO REFACTOR
-            if (currentLayout == lobbyLayout)
+            if (currentLayout == (ILayout)lobbyLayout)
             {
                 using var loader = new SceneLoader();
                 

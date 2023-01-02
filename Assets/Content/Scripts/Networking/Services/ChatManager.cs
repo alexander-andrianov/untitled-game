@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using Content.Scripts.Gamecore.Base.Structs;
 using Unity.Services.Vivox;
 using UnityEngine;
 using VivoxUnity;
@@ -10,6 +11,8 @@ public class ChatManager : MonoBehaviour
 
     private ILoginSession localLoginSession;
     private IChannelSession localChannelSession;
+
+    private Channel currentChannel;
 
     private void Awake()
     {
@@ -31,7 +34,7 @@ public class ChatManager : MonoBehaviour
     {
         var account = new Account(displayName);
 
-        localLoginSession = VivoxService.Instance.Client.GetLoginSession(account); 
+        localLoginSession = VivoxService.Instance.Client.GetLoginSession(account);
 
         localLoginSession.BeginLogin(localLoginSession.GetLoginToken(), SubscriptionMode.Accept, null, null, null, ar =>
         {
@@ -49,12 +52,20 @@ public class ChatManager : MonoBehaviour
     #endregion
 
     #region JoinChannelMethods
-    
+
     public void JoinEchoChannel()
     {
         if (localLoginSession.State == LoginState.LoggedIn)
         {
-            JoinNonPositionalChannel("EchoTestChannel", ChannelType.Echo, true, true);
+            var channelSettings = new ChannelSettings
+            {
+                Name = "EchoTestChannel",
+                Type = ChannelType.Echo,
+                ConnectAudio = true,
+                ConnectText = false
+            };
+
+            JoinNonPositionalChannel(channelSettings);
         }
     }
 
@@ -62,84 +73,109 @@ public class ChatManager : MonoBehaviour
     {
         if (localLoginSession.State == LoginState.LoggedIn)
         {
-            Debug.Log("CHANNEL NAME: " + channelName);
-            JoinNonPositionalChannel(channelName, ChannelType.NonPositional, true, true);
+            var channelSettings = new ChannelSettings
+            {
+                Name = channelName,
+                Type = ChannelType.NonPositional,
+                ConnectAudio = true,
+                ConnectText = false
+            };
+
+            JoinNonPositionalChannel(channelSettings);
         }
     }
 
-    public void JoinPositionalChannel(string channelName, bool includeVoice, bool includeText, bool switchToThisChannel, ChannelType channelType,
-        int maxHearingDistance, int minHearingDistance, float voiceFadeOutOverDistance, AudioFadeModel audioFadeModel)
+    public void JoinPositionalChannel(ChannelSettings settings, Channel3DProperties channel3DProperties)
     {
-        var channel3DProperties = new Channel3DProperties(maxHearingDistance, minHearingDistance, voiceFadeOutOverDistance, audioFadeModel);
-        Join3DChannel(channelName, includeVoice, includeText, switchToThisChannel, channelType, channel3DProperties);
+        Join3DChannel(settings, channel3DProperties);
     }
 
-    private void JoinNonPositionalChannel(string channelName, ChannelType channelType, bool connectAudio, bool connectText, bool transmissionSwitch = true, Channel3DProperties properties = null)
+    private void JoinNonPositionalChannel(ChannelSettings settings, bool transmissionSwitch = true,
+        Channel3DProperties properties = null)
     {
         if (localLoginSession.State == LoginState.LoggedIn)
         {
-            var channel = new Channel(channelName, channelType, properties);
-            var channelSession = localLoginSession.GetChannelSession(channel);
+            currentChannel = new Channel(settings.Name, settings.Type, properties);
+            var channelSession = localLoginSession.GetChannelSession(currentChannel);
 
-            channelSession.BeginConnect(connectAudio, connectText, transmissionSwitch, channelSession.GetConnectToken(), ar => 
-            {
-                try
+            channelSession.BeginConnect(settings.ConnectAudio, settings.ConnectText, transmissionSwitch,
+                channelSession.GetConnectToken(), ar =>
                 {
-                    channelSession.EndConnect(ar);
-                }
-                catch(Exception e)
-                {
-                    Debug.LogError($"Could not connect to channel: {e.Message}");
-                }
-            });
-        } else 
+                    try
+                    {
+                        channelSession.EndConnect(ar);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"Could not connect to channel: {e.Message}");
+                    }
+                });
+        }
+        else
         {
             Debug.LogError("Can't join a channel when not logged in.");
         }
-    } 
-    
-    private void Join3DChannel(string channelName, bool isAudio, bool isText, bool switchTransmission,
-        ChannelType channelType, Channel3DProperties channel3DProperties)
+    }
+
+    private void Join3DChannel(ChannelSettings settings, Channel3DProperties channel3DProperties)
     {
-        var channel = new Channel(channelName, channelType, channel3DProperties);
-        localChannelSession = localLoginSession.GetChannelSession(channel);
+        currentChannel = new Channel(settings.Name, settings.Type, channel3DProperties);
+        localChannelSession = localLoginSession.GetChannelSession(currentChannel);
         BindChannelCallBackListener(true, localChannelSession);
         BindUserCallBacks(true, localChannelSession);
 
-        if (isAudio)
+        if (settings.ConnectAudio)
         {
             localChannelSession.PropertyChanged += OnAudioStateChanged;
         }
 
-        if (isText)
+        if (settings.ConnectText)
         {
             localChannelSession.PropertyChanged += OnTextStateChanged;
         }
+        
+        Debug.Log("AUDIO: " + settings.ConnectAudio + "; TEXT: " + settings.ConnectText + "; SWITCH: " + settings.SwitchToThisChannel);
 
-        localChannelSession.BeginConnect(isAudio, isText, switchTransmission, localChannelSession.GetConnectToken(), ar =>
+        localChannelSession.BeginConnect(settings.ConnectAudio, settings.ConnectText, settings.SwitchToThisChannel, localChannelSession.GetConnectToken(),
+            ar =>
+            {
+                try
+                {
+                    localChannelSession.EndConnect(ar);
+                }
+                catch (Exception e)
+                {
+                    BindChannelCallBackListener(false, localChannelSession);
+                    BindUserCallBacks(false, localChannelSession);
+
+                    if (settings.ConnectAudio)
+                    {
+                        localChannelSession.PropertyChanged -= OnAudioStateChanged;
+                    }
+
+                    if (settings.ConnectText)
+                    {
+                        localChannelSession.PropertyChanged -= OnTextStateChanged;
+                    }
+
+                    Debug.Log(e);
+                }
+            });
+    }
+
+    #endregion
+
+    #region LeaveChannelMethods
+
+    public void LeaveChannel()
+    {
+        var channelSession = localLoginSession.GetChannelSession(currentChannel);
+
+        if (channelSession != null)
         {
-            try
-            {
-                localChannelSession.EndConnect(ar);
-            }
-            catch (Exception e)
-            {
-                BindChannelCallBackListener(false, localChannelSession);
-                BindUserCallBacks(false, localChannelSession);
-
-                if (isAudio)
-                {
-                    localChannelSession.PropertyChanged -= OnAudioStateChanged;
-                }
-
-                if (isText)
-                {
-                    localChannelSession.PropertyChanged -= OnTextStateChanged;
-                }
-
-                Debug.Log(e);
-            }
-        });
+            channelSession.Disconnect();
+            localLoginSession.DeleteChannelSession(currentChannel);
+        }
     }
 
     #endregion
@@ -154,7 +190,7 @@ public class ChatManager : MonoBehaviour
     #endregion
 
     #region BindCallBacks
-    
+
     private void BindChannelCallBackListener(bool bind, IChannelSession channelSession)
     {
         if (bind)
@@ -164,10 +200,9 @@ public class ChatManager : MonoBehaviour
         else
         {
             channelSession.PropertyChanged -= OnChannelStatusChanged;
-
         }
     }
-    
+
     private void BindUserCallBacks(bool bind, IChannelSession channelSession)
     {
         if (bind)
@@ -175,7 +210,6 @@ public class ChatManager : MonoBehaviour
             channelSession.Participants.AfterKeyAdded += OnParticipantAdded;
             channelSession.Participants.BeforeKeyRemoved += OnParticipantRemoved;
             channelSession.Participants.AfterValueUpdated += OnParticipantUpdated;
-
         }
         else
         {
@@ -184,7 +218,7 @@ public class ChatManager : MonoBehaviour
             channelSession.Participants.AfterValueUpdated -= OnParticipantUpdated;
         }
     }
-    
+
     #endregion
 
     #region UserCallbacks
@@ -197,7 +231,7 @@ public class ChatManager : MonoBehaviour
 
         Debug.Log($"{user.Account.Name} has join the channel");
     }
-    
+
     private void OnParticipantRemoved(object sender, KeyEventArg<string> participantArg)
     {
         var source = (IReadOnlyDictionary<string, IParticipant>)sender;
@@ -206,18 +240,18 @@ public class ChatManager : MonoBehaviour
 
         Debug.Log($"{user.Account.Name} has left the channel");
     }
-    
+
     private void OnParticipantUpdated(object sender, ValueEventArg<string, IParticipant> participantArg)
     {
         var source = (IReadOnlyDictionary<string, IParticipant>)sender;
 
         var user = source[participantArg.Key];
-        
+
         Debug.Log($"{user.Account.Name} has been updated");
     }
-    
+
     #endregion
-    
+
     #region StatesChanges
 
     private void OnChannelStatusChanged(object sender, PropertyChangedEventArgs channelArgs)
@@ -248,11 +282,11 @@ public class ChatManager : MonoBehaviour
             }
         }
     }
-    
+
     private void OnAudioStateChanged(object sender, PropertyChangedEventArgs audioArgs)
     {
         var source = (IChannelSession)sender;
-        
+
         if (audioArgs.PropertyName == "AudioState")
         {
             switch (source.AudioState)
@@ -277,7 +311,7 @@ public class ChatManager : MonoBehaviour
     private void OnTextStateChanged(object sender, PropertyChangedEventArgs textArgs)
     {
         var source = (IChannelSession)sender;
-        
+
         if (textArgs.PropertyName == "TextState")
         {
             switch (source.TextState)
@@ -300,6 +334,6 @@ public class ChatManager : MonoBehaviour
             }
         }
     }
-    
+
     #endregion
 }

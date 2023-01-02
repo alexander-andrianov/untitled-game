@@ -1,7 +1,8 @@
-﻿using Repositories.Models;
+﻿using Content.Scripts.Gamecore.Data.Enums;
+using Repositories.Models;
 using UnityEngine;
 
-namespace Content.Scripts.GameCore.Gameplay.Models
+namespace Content.Scripts.Gamecore.Data.Models
 {
     public class InGameUserModel : UserModel
     {

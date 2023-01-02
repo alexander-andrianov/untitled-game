@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base;
 using Content.Scripts.GameCore.Base.Interfaces;
-using Content.Scripts.GameCore.Data;
+using Content.Scripts.Networking.Data;
 using TMPro;
 using UniRx;
 using UnityEngine;

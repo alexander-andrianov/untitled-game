@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Content.Scripts.Gamecore.Base.Structs;
 using Content.Scripts.GameCore.Scenes.Common.Tools;
 using Content.Scripts.GameCore.Scenes.Root.Layouts;
 using Content.Scripts.GameCore.Services;
@@ -7,6 +8,7 @@ using UniRx;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using VivoxUnity;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Views
 {
@@ -103,6 +105,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 {
                     ClearPlayers();
                     DisableAllListeners();
+
+                    ChatManager.Instance.LeaveChannel();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
                 }

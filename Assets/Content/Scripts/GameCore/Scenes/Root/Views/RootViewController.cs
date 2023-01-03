@@ -242,7 +242,12 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         private void HandleExit(Unit unit)
         {
             startLayout.SetButtonsInteractable(false);
-            Application.Quit();
+            
+            #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+            #else
+                Application.Quit();
+            #endif
         }
 
         private LayoutType GetPreviousLayoutTypeByCurrentType(LayoutType layoutType)

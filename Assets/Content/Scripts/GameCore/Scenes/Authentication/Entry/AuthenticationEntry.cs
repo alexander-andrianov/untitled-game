@@ -1,4 +1,4 @@
-using Content.Scripts.GameCore.Scenes.Authentication.View;
+using Content.Scripts.GameCore.Scenes.Authentication.Views;
 using UnityEngine;
 
 namespace Content.Scripts.GameCore.Scenes.Authentication.Entry

@@ -1,11 +1,14 @@
-using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
-public static class Bootstrapper {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void Initialize() {
-        Addressables.InstantiateAsync("CanvasUtilities");
-        Addressables.InstantiateAsync("NetworkingManager");
+namespace Content.Scripts.GameCore.Scenes.Common.Tools
+{
+    public static class Bootstrapper {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Initialize() {
+            Addressables.InstantiateAsync("CanvasUtilities");
+            Addressables.InstantiateAsync("NetworkingManager");
+            Addressables.InstantiateAsync("ChatManager");
+        }
     }
 }

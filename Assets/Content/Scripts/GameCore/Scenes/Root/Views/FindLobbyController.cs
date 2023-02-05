@@ -1,10 +1,11 @@
+using Content.Scripts.GameCore.Scenes.Common.Tools;
+using Content.Scripts.GameCore.Scenes.Root.Layouts;
+using Content.Scripts.GameCore.Scenes.Root.Other;
+using Content.Scripts.GameCore.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Content.Scripts.GameCore.Scenes.Root.Other;
-using Content.Scripts.GameCore.Scenes.Root.Layouts;
-using Content.Scripts.GameCore.Services;
 using UniRx;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -15,31 +16,31 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
     {
         private readonly List<LobbyPanel> currentLobbySpawns = new();
         private readonly CompositeDisposable disposables = new CompositeDisposable();
-        
-        [SerializeField] private FindLobbyLayout findLobbyLayout;
+
+        [SerializeField] private ListLobbyLayout listLobbyLayout;
         [SerializeField] private LobbyPanel lobbyPanelPrefab;
         [SerializeField] private Transform panelsParent;
         [SerializeField] private GameObject noLobbies;
-        
-        private readonly Subject<Lobby> onConnect = new Subject<Lobby>();
-        
+
+        private readonly Subject<Lobby> onConnect = new();
+
         public IObservable<Lobby> OnConnect => onConnect;
-        
+
         private async void OnEnable()
         {
             InitializeListeners();
-            
+
             foreach (Transform child in panelsParent) Destroy(child.gameObject);
-            
+
             currentLobbySpawns.Clear();
             await FetchLobbies();
         }
-        
+
         private void InitializeListeners()
         {
-            findLobbyLayout.OnRefresh.Subscribe(HandleRefresh).AddTo(disposables);
+            listLobbyLayout.OnRefresh.Subscribe(HandleRefresh).AddTo(disposables);
         }
-        
+
         private void HandleConnect(Lobby lobby)
         {
             onConnect.OnNext(lobby);
@@ -50,8 +51,10 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             await FetchLobbies();
         }
 
-        private async Task FetchLobbies() {
-            try {
+        private async Task FetchLobbies()
+        {
+            try
+            {
                 // Grab all current lobbies
                 var allLobbies = await MatchmakingService.GatherLobbies();
 
@@ -60,18 +63,22 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 var lobbyIds = allLobbies.Where(l => l.HostId != Authentication.Services.Authentication.PlayerId).Select(l => l.Id);
                 var notActive = currentLobbySpawns.Where(l => !lobbyIds.Contains(l.Lobby.Id)).ToList();
 
-                foreach (var panel in notActive) {
+                foreach (var panel in notActive)
+                {
                     Destroy(panel.gameObject);
                     currentLobbySpawns.Remove(panel);
                 }
 
                 // Update or spawn the remaining active lobbies
-                foreach (var lobby in allLobbies) {
+                foreach (var lobby in allLobbies)
+                {
                     var current = currentLobbySpawns.FirstOrDefault(p => p.Lobby.Id == lobby.Id);
-                    if (current != null) {
+                    if (current != null)
+                    {
                         current.UpdateDetails(lobby);
                     }
-                    else {
+                    else
+                    {
                         var panel = Instantiate(lobbyPanelPrefab, panelsParent);
                         panel.Initialize(lobby);
                         panel.Button.OnClickAsObservable().Subscribe(_ => HandleConnect(lobby)).AddTo(disposables);
@@ -81,8 +88,9 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
                 noLobbies.SetActive(!currentLobbySpawns.Any());
             }
-            catch (Exception e) {
-                Debug.LogError(e);
+            catch (Exception e)
+            {
+                CanvasUtilities.Instance.ShowError(e, "Can't fetch lobbies");
             }
         }
     }

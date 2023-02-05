@@ -1,13 +1,12 @@
-using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base.Interfaces;
 using Content.Scripts.GameCore.Scenes.Authentication.Layouts;
 using Content.Scripts.GameCore.Scenes.Common.Tools;
 using Cysharp.Threading.Tasks;
+using System.Threading.Tasks;
 using UniRx;
 using Unity.Services.Vivox;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using VivoxUnity;
 
 namespace Content.Scripts.GameCore.Scenes.Authentication.Views
 {
@@ -16,7 +15,7 @@ namespace Content.Scripts.GameCore.Scenes.Authentication.Views
         private const string LoaderText = "Loading...";
         private const string RootSceneName = "Root";
 
-        [Header("LAYOUTS")] [SerializeField] private AuthorizeLayout authorizeLayout;
+        [Header("LAYOUTS")][SerializeField] private AuthorizeLayout authorizeLayout;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
@@ -45,16 +44,14 @@ namespace Content.Scripts.GameCore.Scenes.Authentication.Views
 
         private async void HandleAuthorize(Unit unit)
         {
-            using var loader = new SceneLoader();
-
-            await loader.ShowLoader(LoaderText);
+            await CanvasUtilities.Instance.Toggle(true, LoaderText);
             await Services.Authentication.Login();
-            
+
             VivoxService.Instance.Initialize();
             ChatManager.Instance.Login();
 
             await SceneManager.LoadSceneAsync(RootSceneName);
-            await loader.HideLoader(LoaderText);
+            await CanvasUtilities.Instance.Toggle(false, LoaderText);
         }
     }
 }

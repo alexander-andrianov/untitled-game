@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Content.Scripts.Gamecore.Data.Models;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Content.Scripts.Gamecore.Data.Models;
 
 namespace Repositories
 {

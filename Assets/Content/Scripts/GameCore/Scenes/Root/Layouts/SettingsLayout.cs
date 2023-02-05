@@ -1,27 +1,19 @@
+using Content.Scripts.GameCore.Base;
 using System;
 using System.Threading.Tasks;
-using Content.Scripts.GameCore.Base;
-using Content.Scripts.GameCore.Base.Interfaces;
 using UniRx;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 {
-    public class SettingsLayout : LayoutBase, ILayout
+    public class SettingsLayout : LayoutBase
     {
         [Header("BUTTONS")]
-        [SerializeField]
-        private Button audioButton;
-
-        [SerializeField] 
-        private Button videoButton;
-
-        [SerializeField] 
-        private Button controlButton;
-        
-        [SerializeField] 
-        private Button languageButton;
+        [SerializeField] private Button audioButton;
+        [SerializeField] private Button videoButton;
+        [SerializeField] private Button controlButton;
+        [SerializeField] private Button languageButton;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
@@ -29,23 +21,13 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         private readonly Subject<Unit> onVideo = new Subject<Unit>();
         private readonly Subject<Unit> onControl = new Subject<Unit>();
         private readonly Subject<Unit> onLanguage = new Subject<Unit>();
-        
+
         private Transform buttonsLayout;
 
         public IObservable<Unit> OnAudio => onAudio;
         public IObservable<Unit> OnVideo => onVideo;
         public IObservable<Unit> OnControl => onControl;
         public IObservable<Unit> OnLanguage => onLanguage;
-
-        internal override void Initialize()
-        {
-            buttonsLayout = transform.GetChild(0);
-            
-            audioButton.OnClickAsObservable().Subscribe(HandleAudio).AddTo(disposables);
-            videoButton.OnClickAsObservable().Subscribe(HandleVideo).AddTo(disposables);
-            controlButton.OnClickAsObservable().Subscribe(HandleControl).AddTo(disposables);
-            languageButton.OnClickAsObservable().Subscribe(HandleLanguage).AddTo(disposables);
-        }
 
         private void OnDisable()
         {
@@ -56,11 +38,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         {
             disposables.Dispose();
         }
-        
-        public async Task SetLayoutVisible(bool value)
+
+        public override async Task SetLayoutVisible(bool value)
         {
             SetButtonsInteractable(value);
-            
+
             if (value)
             {
                 await ShowLayout(buttonsLayout);
@@ -70,12 +52,28 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
                 await HideLayout(buttonsLayout);
             }
         }
-        
-        public void SetButtonsInteractable(bool value) {
+
+        public override void SetButtonsInteractable(bool value)
+        {
             audioButton.interactable = value;
             videoButton.interactable = value;
             controlButton.interactable = value;
             languageButton.interactable = value;
+        }
+
+        internal override void Initialize()
+        {
+            buttonsLayout = transform.GetChild(0);
+
+            audioButton.OnClickAsObservable().Subscribe(HandleAudio).AddTo(disposables);
+            videoButton.OnClickAsObservable().Subscribe(HandleVideo).AddTo(disposables);
+            controlButton.OnClickAsObservable().Subscribe(HandleControl).AddTo(disposables);
+            languageButton.OnClickAsObservable().Subscribe(HandleLanguage).AddTo(disposables);
+        }
+
+        protected override void OnLayoutShowing()
+        {
+            audioButton.Select();
         }
 
         private void HandleAudio(Unit unit)
@@ -87,7 +85,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
         {
             onVideo.OnNext(unit);
         }
-        
+
         private void HandleControl(Unit unit)
         {
             onControl.OnNext(unit);

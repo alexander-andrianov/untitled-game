@@ -5,7 +5,8 @@ using UnityEngine.UI;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Other
 {
-    public class LobbyPanel : MonoBehaviour {
+    public class LobbyPanel : MonoBehaviour
+    {
         [SerializeField] private TMP_Text lobbyNameText, playersCountText;
 
         public Button Button { get; private set; }
@@ -14,11 +15,12 @@ namespace Content.Scripts.GameCore.Scenes.Root.Other
         public void Initialize(Lobby lobby)
         {
             Button = GetComponent<Button>();
-            
+
             UpdateDetails(lobby);
         }
 
-        public void UpdateDetails(Lobby lobby) {
+        public void UpdateDetails(Lobby lobby)
+        {
             Lobby = lobby;
             lobbyNameText.text = lobby.Name;
 

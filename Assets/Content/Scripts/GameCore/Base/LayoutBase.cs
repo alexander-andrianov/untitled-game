@@ -1,12 +1,12 @@
-using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base.Interfaces;
 using DG.Tweening;
+using System.Threading.Tasks;
 using UniRx;
 using UnityEngine;
 
 namespace Content.Scripts.GameCore.Base
 {
-    public abstract class LayoutBase : MonoBehaviour
+    public abstract class LayoutBase : MonoBehaviour, ILayout
     {
         private const float HideLayoutDuration = 0.2f;
         private const float ShowLayoutDuration = 0.3f;
@@ -26,21 +26,18 @@ namespace Content.Scripts.GameCore.Base
             disposables.Dispose();
         }
 
-        private void ChangeScale(Transform targetTransform, Vector3 value)
-        {
-            targetTransform.localScale = value;
-        }
+        public abstract Task SetLayoutVisible(bool value);
 
-        private void SetLayoutVisible(bool value)
-        {
-            gameObject.SetActive(value);
-        }
-        
+        public abstract void SetButtonsInteractable(bool value);
+
+        internal abstract void Initialize();
+
         internal async Task HideLayout(Transform childTransform)
         {
             await childTransform.DOScale(minScale, HideLayoutDuration).SetEase(Ease.InExpo).OnComplete(() =>
             {
-                SetLayoutVisible(false);
+                OnLayoutHiding();
+                SetEnabled(false);
                 ChangeScale(childTransform, defaultScale);
             }).AsyncWaitForCompletion();
         }
@@ -48,11 +45,29 @@ namespace Content.Scripts.GameCore.Base
         internal async Task ShowLayout(Transform targetTransform)
         {
             ChangeScale(targetTransform, minScale);
-            SetLayoutVisible(true);
-            
+            SetEnabled(true);
+            OnLayoutShowing();
+
             await targetTransform.DOScale(defaultScale, ShowLayoutDuration).SetEase(Ease.OutExpo).AsyncWaitForCompletion();
         }
-        
-        internal abstract void Initialize();
+
+        protected virtual void OnLayoutShowing() { }
+
+        protected virtual void OnLayoutHiding() { }
+
+        private void ChangeScale(Transform targetTransform, Vector3 value)
+        {
+            targetTransform.localScale = value;
+        }
+
+        private void SetEnabled(bool value)
+        {
+            if (gameObject.activeSelf == value)
+            {
+                return;
+            }
+
+            gameObject.SetActive(value);
+        }
     }
 }

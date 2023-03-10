@@ -1,53 +1,38 @@
+using Content.Scripts.GameCore.Base;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Content.Scripts.GameCore.Base;
-using Content.Scripts.GameCore.Base.Interfaces;
 using UniRx;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Layouts
 {
-    public class StartLayout : LayoutBase, ILayout
+    public class StartLayout : LayoutBase
     {
         [Header("BUTTONS")]
-        [SerializeField]
-        private Button playButton;
-
-        [SerializeField] 
-        private Button settingsButton;
-
-        [SerializeField] 
-        private Button exitButton;
+        [SerializeField] private Button playButton;
+        [SerializeField] private Button settingsButton;
+        [SerializeField] private Button exitButton;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
         private readonly Subject<Unit> onPlay = new Subject<Unit>();
         private readonly Subject<Unit> onSettings = new Subject<Unit>();
         private readonly Subject<Unit> onExit = new Subject<Unit>();
-        
+
         private Transform buttonsLayout;
 
         public IObservable<Unit> OnPlay => onPlay;
         public IObservable<Unit> OnSettings => onSettings;
         public IObservable<Unit> OnExit => onExit;
 
-        internal override void Initialize()
-        {
-            buttonsLayout = transform.GetChild(0);
-            
-            playButton.OnClickAsObservable().Subscribe(HandlePlay).AddTo(disposables);
-            settingsButton.OnClickAsObservable().Subscribe(HandleSettings).AddTo(disposables);
-            exitButton.OnClickAsObservable().Subscribe(HandleExit).AddTo(disposables);
-        }
-
         private void OnDestroy()
         {
             disposables.Dispose();
         }
-        
-        public async Task SetLayoutVisible(bool value)
+
+        public override async Task SetLayoutVisible(bool value)
         {
             try
             {
@@ -65,11 +50,26 @@ namespace Content.Scripts.GameCore.Scenes.Root.Layouts
                 Trace.WriteLine(exception);
             }
         }
-        
-        public void SetButtonsInteractable(bool value) {
+
+        public override void SetButtonsInteractable(bool value)
+        {
             playButton.interactable = value;
             settingsButton.interactable = value;
             exitButton.interactable = value;
+        }
+
+        internal override void Initialize()
+        {
+            buttonsLayout = transform.GetChild(0);
+
+            playButton.OnClickAsObservable().Subscribe(HandlePlay).AddTo(disposables);
+            settingsButton.OnClickAsObservable().Subscribe(HandleSettings).AddTo(disposables);
+            exitButton.OnClickAsObservable().Subscribe(HandleExit).AddTo(disposables);
+        }
+
+        protected override void OnLayoutShowing()
+        {
+            playButton.Select();
         }
 
         private void HandlePlay(Unit unit)

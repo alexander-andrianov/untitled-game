@@ -1,14 +1,15 @@
+using Content.Scripts.GameCore.Scenes.Authentication.Services;
+using Content.Scripts.GameCore.Scenes.Common.Tools;
+using Content.Scripts.Networking.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Content.Scripts.GameCore.Scenes.Authentication.Services;
-using Content.Scripts.Networking.Data;
+using UniRx;
 using Unity.Netcode.Transports.UTP;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
-using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace Content.Scripts.GameCore.Services
@@ -23,10 +24,9 @@ namespace Content.Scripts.GameCore.Services
         private static Lobby currentLobby;
         private static CancellationTokenSource heartbeatSource, updateLobbySource;
 
-        public static Lobby GetCurrentLobby()
-        {
-            return currentLobby;
-        }
+        private static readonly Subject<List<Player>> lobbyPlayersChanged = new();
+
+        public static IObservable<List<Player>> LobbyPlayersChanged => lobbyPlayersChanged;
 
         private static UnityTransport Transport
         {
@@ -77,17 +77,6 @@ namespace Content.Scripts.GameCore.Services
             return allLobbies.Results;
         }
 
-        private static async void Heartbeat()
-        {
-            heartbeatSource = new CancellationTokenSource();
-
-            while (!heartbeatSource.IsCancellationRequested && currentLobby != null)
-            {
-                await Lobbies.Instance.SendHeartbeatPingAsync(currentLobby.Id);
-                await Task.Delay(HeartbeatInterval * 1000);
-            }
-        }
-
         public static async Task JoinLobbyWithAllocation(string lobbyId)
         {
             currentLobby = await Lobbies.Instance.JoinLobbyByIdAsync(lobbyId);
@@ -97,20 +86,6 @@ namespace Content.Scripts.GameCore.Services
                 a.ConnectionData, a.HostConnectionData);
 
             PeriodicallyRefreshLobby();
-        }
-
-        private static async void PeriodicallyRefreshLobby()
-        {
-            updateLobbySource = new CancellationTokenSource();
-
-            await Task.Delay(LobbyRefreshRate * 1000);
-
-            while (!updateLobbySource.IsCancellationRequested && currentLobby != null)
-            {
-                currentLobby = await Lobbies.Instance.GetLobbyAsync(currentLobby.Id);
-
-                await Task.Delay(LobbyRefreshRate * 1000);
-            }
         }
 
         public static async Task LeaveLobby()
@@ -134,7 +109,7 @@ namespace Content.Scripts.GameCore.Services
                 }
                 catch (Exception e)
                 {
-                    Debug.Log(e);
+                    CanvasUtilities.Instance.ShowError(e, "Failed leave lobby");
                 }
         }
 
@@ -146,7 +121,37 @@ namespace Content.Scripts.GameCore.Services
             }
             catch (Exception e)
             {
-                Debug.Log($"Failed closing lobby: {e}");
+                CanvasUtilities.Instance.ShowError(e, "Failed closing lobby");
+            }
+        }
+
+        public static Lobby GetCurrentLobby()
+        {
+            return currentLobby;
+        }
+
+        private static async void Heartbeat()
+        {
+            heartbeatSource = new CancellationTokenSource();
+
+            while (!heartbeatSource.IsCancellationRequested && currentLobby != null)
+            {
+                await Lobbies.Instance.SendHeartbeatPingAsync(currentLobby.Id);
+                await Task.Delay(HeartbeatInterval * 1000);
+            }
+        }
+
+        private static async void PeriodicallyRefreshLobby()
+        {
+            updateLobbySource = new CancellationTokenSource();
+
+            await Task.Delay(LobbyRefreshRate * 1000);
+
+            while (!updateLobbySource.IsCancellationRequested && currentLobby != null)
+            {
+                currentLobby = await Lobbies.Instance.GetLobbyAsync(currentLobby.Id);
+
+                await Task.Delay(LobbyRefreshRate * 1000);
             }
         }
     }

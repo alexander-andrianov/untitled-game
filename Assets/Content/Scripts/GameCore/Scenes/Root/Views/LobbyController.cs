@@ -1,9 +1,8 @@
-using System;
-using System.Collections.Generic;
-using Content.Scripts.Gamecore.Base.Structs;
 using Content.Scripts.GameCore.Scenes.Common.Tools;
 using Content.Scripts.GameCore.Scenes.Root.Layouts;
 using Content.Scripts.GameCore.Services;
+using System;
+using System.Collections.Generic;
 using UniRx;
 using Unity.Netcode;
 using UnityEngine;
@@ -14,8 +13,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 {
     public class LobbyController : NetworkBehaviour
     {
-        private const string LoadingGameText = "Loading game...";
         private const string GameSceneName = "Game";
+        private const string LoadingGameText = "Loading game...";
 
         private readonly CompositeDisposable disposables = new();
         private readonly Dictionary<ulong, bool> playersInLobby = new();
@@ -63,6 +62,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             lobbyLayout.OnReady.Subscribe(HandleReadyButton).AddTo(disposables);
             lobbyLayout.OnPlay.Subscribe(HandlePlayButton).AddTo(disposables);
+            lobbyLayout.OnSwitchMicro.Subscribe(HandleSwitchMicroButton).AddTo(disposables);
         }
 
         private void OnClientConnectedCallback(ulong playerId)
@@ -97,24 +97,18 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async void OnLobbyLeft()
         {
-            var loader = new SceneLoader();
-
-            using (loader)
+            try
             {
-                try
-                {
-                    ClearPlayers();
-                    DisableAllListeners();
+                ClearPlayers();
+                DisableAllListeners();
 
-                    ChatManager.Instance.LeaveChannel();
-                    NetworkManager.Singleton.Shutdown();
-                    await MatchmakingService.LeaveLobby();
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed leaving lobby");
-                }
+                ChatManager.Instance.LeaveChannel();
+                NetworkManager.Singleton.Shutdown();
+                await MatchmakingService.LeaveLobby();
+            }
+            catch (Exception e)
+            {
+                CanvasUtilities.Instance.ShowError(e, "Failed leaving lobby");
             }
         }
 
@@ -134,22 +128,35 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async void HandlePlayButton(Unit unit)
         {
-            using var loader = new SceneLoader();
-            
             try
             {
-                await loader.ShowLoader(LoadingGameText);
+                await CanvasUtilities.Instance.Toggle(true, LoadingGameText);
 
                 await MatchmakingService.LockLobby();
                 NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
 
-                await loader.HideLoader(LoadingGameText);
+                await CanvasUtilities.Instance.Toggle(false, LoadingGameText);
             }
             catch (Exception e)
             {
-                Debug.LogError(e);
-                CanvasUtilities.Instance.ShowError("Failed to start the game");
+                CanvasUtilities.Instance.ShowError(e, "Failed to start the game");
             }
+        }
+
+        private void HandleSwitchMicroButton(Unit unit)
+        {
+            var isMicroEnabled = ChatManager.Instance.TransmissionMode != TransmissionMode.None;
+            
+            if (isMicroEnabled)
+            {
+                ChatManager.Instance.MuteMyself();
+            }
+            else
+            {
+                ChatManager.Instance.UnmuteMyself();
+            }
+
+            lobbyLayout.UpdateMicroSwitchButtonState(isMicroEnabled == false);
         }
 
         private void UpdateInterface()

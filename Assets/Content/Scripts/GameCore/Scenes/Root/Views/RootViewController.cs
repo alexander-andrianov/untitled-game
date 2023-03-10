@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Content.Scripts.GameCore.Base.Interfaces;
 using Content.Scripts.GameCore.Scenes.Common.Enums;
 using Content.Scripts.GameCore.Scenes.Common.Layouts;
@@ -9,12 +7,14 @@ using Content.Scripts.GameCore.Scenes.Root.View;
 using Content.Scripts.GameCore.Services;
 using Content.Scripts.Networking.Data;
 using Cysharp.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using UniRx;
 using Unity.Netcode;
 using Unity.Services.Lobbies.Models;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using VivoxUnity;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Views
 {
@@ -24,23 +24,26 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         private const string LeavingLobbyText = "Leaving...";
         private const string AuthenticationSceneName = "Authentication";
 
-        [Header("LAYOUTS")] [SerializeField] private StartLayout startLayout;
-        [SerializeField] private PlaymodeLayout playmodeLayout;
+        [Header("LAYOUTS")][SerializeField] private StartLayout startLayout;
         [SerializeField] private SettingsLayout settingsLayout;
+        [SerializeField] private ListLobbyLayout listLobbyLayout;
         [SerializeField] private CreateLobbyLayout createLobbyLayout;
-        [SerializeField] private FindLobbyLayout findLobbyLayout;
         [SerializeField] private LobbyLayout lobbyLayout;
-        [SerializeField] private ReturnLayout returnLayout;
+        [SerializeField] private NavigationLayout navigationLayout;
 
-        [Header("CONTROLLERS")] 
+        [Header("CONTROLLERS")]
         [SerializeField] private LobbyController lobbyController;
         [SerializeField] private FindLobbyController findLobbyController;
+        [SerializeField] private NavigationController navigationController;
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
+        private readonly Subject<LayoutType> layoutChange = new();
 
         private ILayout currentLayout;
 
         private LayoutType currentLayoutType;
+
+        public IObservable<LayoutType> LayoutChange => layoutChange;
 
         private void OnDestroy()
         {
@@ -50,39 +53,44 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         public async Task Initialize()
         {
             InitializeLayouts();
+            InitializeControllers();
             InitializeObservableListeners();
 
             currentLayout = startLayout;
             currentLayoutType = LayoutType.Start;
 
             await ShowLayoutView(currentLayout);
-            await ShowLayoutView(returnLayout);
+            await ShowLayoutView(navigationLayout);
         }
 
         private void InitializeLayouts()
         {
             startLayout.Initialize();
-            playmodeLayout.Initialize();
             settingsLayout.Initialize();
-            createLobbyLayout.Initialize();
             lobbyLayout.Initialize();
-            findLobbyLayout.Initialize();
-            returnLayout.Initialize();
+            listLobbyLayout.Initialize();
+            navigationLayout.Initialize();
+            createLobbyLayout.Initialize();
+        }
+
+        private void InitializeControllers()
+        {
+            navigationController.Initialize();
         }
 
         private void InitializeObservableListeners()
         {
-            startLayout.OnPlay.Subscribe(_ => HandleSwitch(LayoutType.Playmode)).AddTo(disposables);
+            startLayout.OnPlay.Subscribe(_ => HandleSwitch(LayoutType.ListLobby)).AddTo(disposables);
             startLayout.OnSettings.Subscribe(_ => HandleSwitch(LayoutType.Settings)).AddTo(disposables);
             startLayout.OnExit.Subscribe(HandleExit).AddTo(disposables);
 
-            playmodeLayout.OnCreateLobby.Subscribe(_ => HandleSwitch(LayoutType.CreateLobby)).AddTo(disposables);
-            playmodeLayout.OnFindLobby.Subscribe(_ => HandleSwitch(LayoutType.FindLobby)).AddTo(disposables);
-
-            createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
             findLobbyController.OnConnect.Subscribe(HandleConnectToLobby).AddTo(disposables);
 
-            returnLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
+            listLobbyLayout.OnCreateLobby.Subscribe(_ => HandleSwitch(LayoutType.CreateLobby)).AddTo(disposables);
+
+            createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
+
+            navigationLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
         }
 
         private async Task ShowLayoutView(ILayout layout)
@@ -100,28 +108,30 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
             // TO REFACTOR
             if (currentLayout == (ILayout)lobbyLayout)
             {
-                using var loader = new SceneLoader();
-                
                 try
                 {
-                    await loader.ShowLoader(LeavingLobbyText);
+                    await CanvasUtilities.Instance.Toggle(true, LoadingText);
 
                     lobbyController.ClearPlayers();
+                    ChatManager.Instance.LeaveChannel();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
 
                     await HideLayoutView(currentLayout);
-                    await loader.HideLoader(LeavingLobbyText);
+
+                    await CanvasUtilities.Instance.Toggle(false, LoadingText);
 
                     currentLayout = GetLayoutByType(layoutType);
                     currentLayoutType = layoutType;
+
+                    layoutChange.OnNext(layoutType);
 
                     await ShowLayoutView(currentLayout);
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError(e);
-                    CanvasUtilities.Instance.ShowError("Failed to return to previous layout");
+                    CanvasUtilities.Instance.ShowError(e, "Failed to return to previous layout");
+                    ReturnToDefalut();
                 }
 
                 return;
@@ -131,6 +141,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
             currentLayout = GetLayoutByType(layoutType);
             currentLayoutType = layoutType;
+
+            layoutChange.OnNext(layoutType);
 
             await ShowLayoutView(currentLayout);
         }
@@ -148,11 +160,9 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async void HandleLobbyLayout(LobbyData data)
         {
-            using var loader = new SceneLoader();
-            
             try
             {
-                await loader.ShowLoader(LoadingText);
+                await CanvasUtilities.Instance.Toggle(true, LoadingText);
                 await MatchmakingService.CreateLobbyWithAllocation(data);
                 await HideLayoutView(currentLayout);
 
@@ -174,13 +184,13 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 //     AudioFadeModel.InverseByDistance
                 // );
                 ChatManager.Instance.JoinNonPositionalChannel(MatchmakingService.GetCurrentLobby().Id);
-                
-                await loader.HideLoader(LoadingText);
+
+                await CanvasUtilities.Instance.Toggle(false, LoadingText);
             }
             catch (Exception e)
             {
-                Debug.LogError(e);
-                CanvasUtilities.Instance.ShowError("Failed creating lobby");
+                CanvasUtilities.Instance.ShowError(e, "Failed creating lobby");
+                ReturnToDefalut();
             }
         }
 
@@ -188,21 +198,16 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             if (currentLayoutType == LayoutType.Start)
             {
-                var loader = new SceneLoader();
-
-                using (loader)
+                try
                 {
-                    try
-                    {
-                        await loader.ShowLoader(LoadingText);
-                        await SceneManager.LoadSceneAsync(AuthenticationSceneName);
-                        await loader.HideLoader(LoadingText);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError(e);
-                        CanvasUtilities.Instance.ShowError("Failed to return");
-                    }
+                    await CanvasUtilities.Instance.Toggle(true, LoadingText);
+                    await SceneManager.LoadSceneAsync(AuthenticationSceneName);
+                    await CanvasUtilities.Instance.Toggle(false, LoadingText);
+                }
+                catch (Exception e)
+                {
+                    CanvasUtilities.Instance.ShowError(e, "Failed to return");
+                    ReturnToDefalut();
                 }
 
                 return;
@@ -213,11 +218,9 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async void HandleConnectToLobby(Lobby lobby)
         {
-            using var loader = new SceneLoader();
-            
             try
             {
-                await loader.ShowLoader(LoadingText);
+                await CanvasUtilities.Instance.Toggle(true, LoadingText);
                 await MatchmakingService.JoinLobbyWithAllocation(lobby.Id);
 
                 await HideLayoutView(currentLayout);
@@ -225,29 +228,44 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 currentLayout = GetLayoutByType(LayoutType.Lobby);
                 currentLayoutType = LayoutType.Lobby;
 
-                await ShowLayoutView(currentLayout);
+                await CanvasUtilities.Instance.Toggle(false, LoadingText);
 
                 NetworkManager.Singleton.StartClient();
                 ChatManager.Instance.JoinNonPositionalChannel(lobby.Id);
 
-                await loader.HideLoader(LoadingText);
+                await ShowLayoutView(currentLayout);
+
             }
             catch (Exception e)
             {
-                Debug.LogError(e);
-                CanvasUtilities.Instance.ShowError("Failed joining lobby");
+                CanvasUtilities.Instance.ShowError(e, "Failed joining lobby");
+                ReturnToDefalut();
             }
         }
 
         private void HandleExit(Unit unit)
         {
             startLayout.SetButtonsInteractable(false);
-            
-            #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-            #else
-                Application.Quit();
-            #endif
+
+#if UNITY_EDITOR
+            EditorApplication.ExitPlaymode();
+#else
+            Application.Quit();
+#endif
+        }
+
+        private async void ReturnToDefalut()
+        {
+            await HideLayoutView(currentLayout);
+
+            await CanvasUtilities.Instance.Toggle(false, LoadingText);
+
+            currentLayout = GetLayoutByType(LayoutType.Start);
+            currentLayoutType = LayoutType.Start;
+
+            layoutChange.OnNext(LayoutType.Start);
+
+            await ShowLayoutView(currentLayout);
         }
 
         private LayoutType GetPreviousLayoutTypeByCurrentType(LayoutType layoutType)
@@ -255,11 +273,10 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
             return layoutType switch
             {
                 LayoutType.Start => default,
-                LayoutType.Playmode => LayoutType.Start,
-                LayoutType.CreateLobby => LayoutType.Playmode,
-                LayoutType.FindLobby => LayoutType.Playmode,
-                LayoutType.Lobby => LayoutType.CreateLobby,
+                LayoutType.ListLobby => LayoutType.Start,
+                LayoutType.Lobby => LayoutType.ListLobby,
                 LayoutType.Settings => LayoutType.Start,
+                LayoutType.CreateLobby => LayoutType.ListLobby,
                 _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
             };
         }
@@ -268,12 +285,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             return layoutType switch
             {
-                LayoutType.Playmode => playmodeLayout,
-                LayoutType.CreateLobby => createLobbyLayout,
-                LayoutType.FindLobby => findLobbyLayout,
+                LayoutType.ListLobby => listLobbyLayout,
                 LayoutType.Start => startLayout,
                 LayoutType.Lobby => lobbyLayout,
                 LayoutType.Settings => settingsLayout,
+                LayoutType.CreateLobby => createLobbyLayout,
                 _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
             };
         }

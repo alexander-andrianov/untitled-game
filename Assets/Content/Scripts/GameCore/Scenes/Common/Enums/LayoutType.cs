@@ -1,12 +1,12 @@
 namespace Content.Scripts.GameCore.Scenes.Common.Enums
 {
-    public enum LayoutType {
+    public enum LayoutType
+    {
         Start,
         Settings,
         Return,
-        Playmode,
+        ListLobby,
+        Lobby,
         CreateLobby,
-        FindLobby, 
-        Lobby
     }
 }

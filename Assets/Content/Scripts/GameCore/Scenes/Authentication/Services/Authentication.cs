@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
-using UnityEngine;
 
 #if UNITY_EDITOR
 using ParrelSync;

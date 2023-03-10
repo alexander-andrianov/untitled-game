@@ -1,8 +1,6 @@
+using DG.Tweening;
 using System;
 using System.Threading.Tasks;
-using DG.Tweening;
-using DG.Tweening.Core;
-using DG.Tweening.Plugins.Options;
 using TMPro;
 using UnityEngine;
 
@@ -22,7 +20,7 @@ namespace Content.Scripts.GameCore.Scenes.Common.Tools
         private async void Awake()
         {
             Instance = this;
-            
+
             DontDestroyOnLoad(gameObject);
             await Toggle(false, instant: true);
         }
@@ -35,31 +33,19 @@ namespace Content.Scripts.GameCore.Scenes.Common.Tools
             await loader.DOFade(on ? 1 : 0, instant ? 0 : fadeTime).AsyncWaitForCompletion();
         }
 
+        public void ShowError(Exception exception, string error)
+        {
+            Debug.LogError(exception);
+            ShowError(error);
+        }
+
         public void ShowError(string error)
         {
             errorText.text = error;
             errorText.DOFade(1, fadeTime).OnComplete(() =>
             {
-                errorText.DOFade(0, fadeTime).SetDelay(1);
+                errorText.DOFade(0, fadeTime).SetDelay(3);
             });
-        }
-    }
-
-    public class SceneLoader : IDisposable
-    {
-        public async Task ShowLoader(string loaderText)
-        {
-            await CanvasUtilities.Instance.Toggle(true, loaderText);
-        }
-        
-        public async Task HideLoader(string loaderText)
-        {
-            await CanvasUtilities.Instance.Toggle(false, loaderText);
-        }
-
-        public async void Dispose()
-        {
-            await CanvasUtilities.Instance.Toggle(false);
         }
     }
 }

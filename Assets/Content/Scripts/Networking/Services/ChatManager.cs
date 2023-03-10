@@ -14,6 +14,8 @@ public class ChatManager : MonoBehaviour
 
     private Channel currentChannel;
 
+    public TransmissionMode TransmissionMode => localLoginSession.TransmissionType;
+
     private void Awake()
     {
         Instance = this;
@@ -185,6 +187,11 @@ public class ChatManager : MonoBehaviour
     public void MuteMyself()
     {
         localLoginSession.SetTransmissionMode(TransmissionMode.None);
+    }
+
+    public void UnmuteMyself()
+    {
+        localLoginSession.SetTransmissionMode(TransmissionMode.All);
     }
 
     #endregion

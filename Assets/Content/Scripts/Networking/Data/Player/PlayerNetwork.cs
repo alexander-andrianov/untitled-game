@@ -22,8 +22,11 @@ namespace Content.Scripts.Networking.Data
             {
                 networkData.Value = new PlayerNetworkData()
                 {
-                    Position = playerTransform.position,
-                    Rotation = playerTransform.rotation.eulerAngles
+                    Position = Vector3.SmoothDamp(playerTransform.position, networkData.Value.Position, ref velocity, interpolationTime),
+                    Rotation = Quaternion.Euler(
+                        0f,
+                        Mathf.SmoothDampAngle(playerTransform.rotation.eulerAngles.y, networkData.Value.Rotation.y, ref rotationVelocity, interpolationTime),
+                        0f).eulerAngles
                 };
             }
             else

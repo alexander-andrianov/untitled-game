@@ -2,9 +2,9 @@ using System.Threading.Tasks;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 
-#if UNITY_EDITOR
-using ParrelSync;
-#endif
+// #if UNITY_EDITOR
+// using ParrelSync;
+// #endif
 
 namespace Content.Scripts.GameCore.Scenes.Authentication.Services
 {
@@ -18,12 +18,12 @@ namespace Content.Scripts.GameCore.Scenes.Authentication.Services
             {
                 var options = new InitializationOptions();
 
-                #if UNITY_EDITOR
-                if (ClonesManager.IsClone())
-                    options.SetProfile(ClonesManager.GetArgument());
-                else
-                    options.SetProfile("Primary");
-                #endif
+                // #if UNITY_EDITOR
+                // if (ClonesManager.IsClone())
+                    // options.SetProfile(ClonesManager.GetArgument());
+                // else
+                    // options.SetProfile("Primary");
+                // #endif
                 
                 await UnityServices.InitializeAsync(options);
             }

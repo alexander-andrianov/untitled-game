@@ -113,7 +113,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                     await CanvasUtilities.Instance.Toggle(true, LoadingText);
 
                     lobbyController.ClearPlayers();
-                    ChatManager.Instance.LeaveChannel();
+                    // ChatManager.Instance.LeaveChannel();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
 
@@ -183,7 +183,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 //     5,
                 //     AudioFadeModel.InverseByDistance
                 // );
-                ChatManager.Instance.JoinNonPositionalChannel(MatchmakingService.GetCurrentLobby().Id);
+                // ChatManager.Instance.JoinNonPositionalChannel(MatchmakingService.GetCurrentLobby().Id);
 
                 await CanvasUtilities.Instance.Toggle(false, LoadingText);
             }
@@ -201,7 +201,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 try
                 {
                     await CanvasUtilities.Instance.Toggle(true, LoadingText);
-                    await SceneManager.LoadSceneAsync(AuthenticationSceneName);
+                    await SceneManager.LoadSceneAsync(AuthenticationSceneName).AsObservable();
                     await CanvasUtilities.Instance.Toggle(false, LoadingText);
                 }
                 catch (Exception e)
@@ -231,7 +231,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 await CanvasUtilities.Instance.Toggle(false, LoadingText);
 
                 NetworkManager.Singleton.StartClient();
-                ChatManager.Instance.JoinNonPositionalChannel(lobby.Id);
+                // ChatManager.Instance.JoinNonPositionalChannel(lobby.Id);
 
                 await ShowLayoutView(currentLayout);
 
@@ -247,11 +247,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             startLayout.SetButtonsInteractable(false);
 
-#if UNITY_EDITOR
-            EditorApplication.ExitPlaymode();
-#else
-            Application.Quit();
-#endif
+            #if UNITY_EDITOR
+                        EditorApplication.ExitPlaymode();
+            #else
+                        Application.Quit();
+            #endif
         }
 
         private async void ReturnToDefalut()

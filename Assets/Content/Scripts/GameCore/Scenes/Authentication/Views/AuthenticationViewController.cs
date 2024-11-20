@@ -47,10 +47,10 @@ namespace Content.Scripts.GameCore.Scenes.Authentication.Views
             await CanvasUtilities.Instance.Toggle(true, LoaderText);
             await Services.Authentication.Login();
 
-            VivoxService.Instance.Initialize();
-            ChatManager.Instance.Login();
+            await VivoxService.Instance.InitializeAsync();
+            // ChatManager.Instance.Login();
 
-            await SceneManager.LoadSceneAsync(RootSceneName);
+            await SceneManager.LoadSceneAsync(RootSceneName).ToUniTask();
             await CanvasUtilities.Instance.Toggle(false, LoaderText);
         }
     }

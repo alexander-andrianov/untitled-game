@@ -7,7 +7,7 @@ using UniRx;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using VivoxUnity;
+// using VivoxUnity;
 
 namespace Content.Scripts.GameCore.Scenes.Root.Views
 {
@@ -102,7 +102,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 ClearPlayers();
                 DisableAllListeners();
 
-                ChatManager.Instance.LeaveChannel();
+                // ChatManager.Instance.LeaveChannel();
                 NetworkManager.Singleton.Shutdown();
                 await MatchmakingService.LeaveLobby();
             }
@@ -145,18 +145,18 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private void HandleSwitchMicroButton(Unit unit)
         {
-            var isMicroEnabled = ChatManager.Instance.TransmissionMode != TransmissionMode.None;
-            
-            if (isMicroEnabled)
-            {
-                ChatManager.Instance.MuteMyself();
-            }
-            else
-            {
-                ChatManager.Instance.UnmuteMyself();
-            }
+            // var isMicroEnabled = ChatManager.Instance.TransmissionMode != TransmissionMode.None;
+            //
+            // if (isMicroEnabled)
+            // {
+            //     ChatManager.Instance.MuteMyself();
+            // }
+            // else
+            // {
+            //     ChatManager.Instance.UnmuteMyself();
+            // }
 
-            lobbyLayout.UpdateMicroSwitchButtonState(isMicroEnabled == false);
+            // lobbyLayout.UpdateMicroSwitchButtonState(isMicroEnabled == false);
         }
 
         private void UpdateInterface()

@@ -15,18 +15,15 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         private const float RotationDumpingValue = 10f;
 
         [SerializeField] private PlayableDirector ghostDirector;
-
         [SerializeField] private Transform mainModel;
-
         [SerializeField] private Light playerLight;
 
         public Light PlayerLight => playerLight;
 
         private PlayerInput playerInput;
+        private PlayableDirector activeDirector;
         private Transform localTransform;
         private Vector3 currentMovementInput;
-
-        private PlayableDirector activeDirector;
 
         public override void OnNetworkSpawn()
         {

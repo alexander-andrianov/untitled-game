@@ -1,10 +1,14 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Content.Scripts.Gamecore.Base.Structs;
 using Content.Scripts.GameCore.Scenes.Game.Controllers;
 using Content.Scripts.GameCore.Services;
 using Unity.Netcode;
 using Unity.Services.Vivox;
 using UnityEngine;
+using Cysharp.Threading.Tasks;
+using Unity.Services.Lobbies;
 
 namespace Content.Scripts.GameCore.Scenes.Game.Entry
 {
@@ -15,6 +19,7 @@ namespace Content.Scripts.GameCore.Scenes.Game.Entry
 
         private List<Color> playerColors;
         private List<Vector3> playerSpawns;
+        private readonly Dictionary<ulong, PlayerController> spawnedPlayers = new();
 
         public override async void OnDestroy()
         {
@@ -27,13 +32,58 @@ namespace Content.Scripts.GameCore.Scenes.Game.Entry
             }
         }
 
-        public override void OnNetworkSpawn()
+        public override async void OnNetworkSpawn()
         {
-            Initialize();
-            SpawnPlayerServerRpc(NetworkManager.Singleton.LocalClientId);
+            await Initialize();
+
+            if (IsServer)
+            {
+                // Подписываемся на события подключения/отключения клиентов
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectCallback;
+
+                // Спавним всех существующих клиентов
+                foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+                {
+                    SpawnPlayerServerRpc(clientId);
+                }
+            }
+            else
+            {
+                // Клиент запрашивает спавн своего игрока
+                RequestSpawnServerRpc();
+            }
         }
 
-        private void Initialize()
+        [ServerRpc]
+        private void RequestSpawnServerRpc()
+        {
+            var clientId = NetworkManager.Singleton.LocalClientId;
+            SpawnPlayerServerRpc(clientId);
+        }
+
+        private void OnClientConnectedCallback(ulong clientId)
+        {
+            if (!IsServer) return;
+            SpawnPlayerServerRpc(clientId);
+        }
+
+        private void OnClientDisconnectCallback(ulong clientId)
+        {
+            if (!IsServer) return;
+
+            if (spawnedPlayers.TryGetValue(clientId, out var player))
+            {
+                spawnedPlayers.Remove(clientId);
+                if (player != null)
+                {
+                    player.NetworkObject.Despawn();
+                    Destroy(player.gameObject);
+                }
+            }
+        }
+
+        private async UniTask Initialize()
         {
             var playerParentY = playerParent.position.y;
             
@@ -52,44 +102,57 @@ namespace Content.Scripts.GameCore.Scenes.Game.Entry
                 new(-2f, playerParentY, -2f),
                 new(2f, playerParentY, -2f)
             };
-            
-            // ChatManager.Instance.LeaveChannel();
-            
-            // var channelName = MatchmakingService.GetCurrentLobby().Id;
-            // var channelSettings = new ChannelSettings
-            // {
-            //     Name = channelName,
-            //     Type = ChannelType.Positional,
-            //     ConnectAudio = true,
-            //     ConnectText = false,
-            //     SwitchToThisChannel = true
-            // };
 
-            // var channel3DProperties = new Channel3DProperties(10, 5, 5, AudioFadeModel.InverseByDistance);
-
-            // ChatManager.Instance.JoinPositionalChannel(channelSettings, channel3DProperties);
+            var currentLobby = MatchmakingService.GetCurrentLobby();
+            if (currentLobby != null)
+            {
+                try
+                {
+                    await ChatManager.Instance.InitializeAsync();
+                    await ChatManager.Instance.JoinPositionalChannel(currentLobby.Id);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to initialize chat: {e.Message}");
+                }
+            }
         }
 
         [ServerRpc(RequireOwnership = false)]
         private void SpawnPlayerServerRpc(ulong playerId)
         {
-            var player = Instantiate(playerPrefab, playerSpawns[0], Quaternion.identity, playerParent);
-            var teamColor = playerColors[0];
+            if (spawnedPlayers.ContainsKey(playerId))
+            {
+                Debug.LogWarning($"Player {playerId} already spawned");
+                return;
+            }
 
-            playerSpawns.RemoveAt(0);
-            playerColors.RemoveAt(0);
+            var connectedClients = NetworkManager.Singleton.ConnectedClientsIds.ToList();
+            var spawnIndex = connectedClients.IndexOf(playerId);
+            if (spawnIndex < 0 || spawnIndex >= playerSpawns.Count)
+            {
+                Debug.LogError($"Invalid spawn index for player {playerId}");
+                return;
+            }
 
-            player.PlayerLight.color = teamColor;
-            // player.GetComponent<NetworkObject>().Spawn();
-            player.NetworkObject.SpawnWithOwnership(playerId);
+            var playerInstance = Instantiate(
+                playerPrefab,
+                playerSpawns[spawnIndex],
+                Quaternion.identity,
+                playerParent
+            );
+
+            var networkObject = playerInstance.GetComponent<NetworkObject>();
+            networkObject.SpawnAsPlayerObject(playerId);
+
+            var colorIndex = spawnIndex;
+            if (colorIndex >= 0 && colorIndex < playerColors.Count)
+            {
+                playerInstance.SetColor(playerColors[colorIndex]);
+            }
+
+            spawnedPlayers[playerId] = playerInstance;
+            Debug.Log($"Spawned player {playerId} at position {playerSpawns[spawnIndex]}");
         }
-
-        // [ServerRpc(RequireOwnership = false)]
-        // private void SetTeamServerRpc(ulong playerId)
-        // {
-        //     var teamColor = playerColors[0];
-        //     playerColors.RemoveAt(0);
-        //     
-        // }
     }
 }

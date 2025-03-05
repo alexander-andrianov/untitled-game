@@ -1,21 +1,35 @@
 using Content.Scripts.Networking.Data.Player;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace Content.Scripts.Networking.Data
 {
     public class PlayerNetwork : NetworkBehaviour
     {
-        private readonly NetworkVariable<PlayerNetworkData> networkData = new(writePerm: NetworkVariableWritePermission.Owner);
+        private NetworkVariable<PlayerNetworkData> networkData = new(writePerm: NetworkVariableWritePermission.Owner);
+        private NetworkTransform networkTransform;
 
         [SerializeField] private float interpolationTime = 0.08f;
 
         private Vector3 velocity;
-        
         private float rotationVelocity;
+        
+        public override void OnNetworkSpawn()
+        {
+            networkTransform = GetComponent<NetworkTransform>();
+            if (networkTransform == null)
+            {
+                networkTransform = gameObject.AddComponent<NetworkTransform>();
+            }
+            
+            networkTransform.Interpolate = true;
+        }
         
         private void Update()
         {
+            if (!IsSpawned) return;
+            
             var playerTransform = transform;
             
             if (IsOwner)

@@ -17,6 +17,8 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         [SerializeField] private PlayableDirector ghostDirector;
         [SerializeField] private Transform mainModel;
         [SerializeField] private Light playerLight;
+        [SerializeField] private Renderer modelRenderer;
+        [SerializeField] private CinemachineVirtualCamera virtualCameraPrefab;
 
         public Light PlayerLight => playerLight;
 
@@ -24,50 +26,73 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         private PlayableDirector activeDirector;
         private Transform localTransform;
         private Vector3 currentMovementInput;
+        private bool isInitialized;
+        private CinemachineVirtualCamera playerCamera;
 
         public override void OnNetworkSpawn()
         {
-            if (!IsOwner)
-            {
-                enabled = false;
-            }
+            Initialize();
         }
 
         private async void Start()
         {
-            Initialize();
-
             await Task.Delay(TimeSpan.FromSeconds(15f));
             HandleKill();
         }
 
         private void OnDisable()
         {
-            if (IsOwner)
+            if (IsOwner && playerInput != null)
             {
                 playerInput.Disable();
+            }
+
+            if (playerCamera != null)
+            {
+                Destroy(playerCamera.gameObject);
             }
         }
 
         private void Update()
         {
-            MovePlayer();
-            RotatePlayer();
+            if (!isInitialized) return;
+
+            if (IsOwner)
+            {
+                MovePlayer();
+                RotatePlayer();
+            }
         }
 
         private void Initialize()
         {
-            var virtualCamera = FindObjectOfType<CinemachineVirtualCamera>();
-            virtualCamera.Follow = transform;
-
             localTransform = GetComponent<Transform>();
 
-            playerInput = new PlayerInput();
-            playerInput.Enable();
+            if (IsOwner)
+            {
+                if (virtualCameraPrefab == null)
+                {
+                    Debug.LogError($"Virtual camera prefab is not assigned for player {NetworkManager.Singleton.LocalClientId}");
+                    return;
+                }
+
+                // Создаем отдельную камеру для этого игрока
+                playerCamera = Instantiate(virtualCameraPrefab);
+                playerCamera.Follow = transform;
+                playerCamera.Priority = 10; // Устанавливаем высокий приоритет для камеры игрока
+                Debug.Log($"Created camera for player {NetworkManager.Singleton.LocalClientId}");
+
+                playerInput = new PlayerInput();
+                playerInput.Enable();
+            }
+
+            isInitialized = true;
         }
 
         private void MovePlayer()
         {
+            if (!IsOwner) return;
+
             var currentPosition = localTransform.position;
             currentMovementInput = playerInput.Player.Move.ReadValue<Vector3>().normalized;
             currentMovementInput.y = 0;
@@ -78,6 +103,8 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
 
         private void RotatePlayer()
         {
+            if (!IsOwner) return;
+
             var movementDirection = currentMovementInput;
 
             if (movementDirection == Vector3.zero) return;
@@ -97,6 +124,14 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         {
             playableDirector.Play();
             return UniTask.WaitWhile(() => playableDirector.state == PlayState.Playing);
+        }
+
+        public void SetColor(Color color)
+        {
+            if (modelRenderer != null)
+            {
+                modelRenderer.material.color = color;
+            }
         }
     }
 }

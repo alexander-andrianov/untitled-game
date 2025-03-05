@@ -40,7 +40,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         private readonly Subject<LayoutType> layoutChange = new();
 
         private ILayout currentLayout;
-
         private LayoutType currentLayoutType;
 
         public IObservable<LayoutType> LayoutChange => layoutChange;
@@ -76,6 +75,24 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         private void InitializeControllers()
         {
             navigationController.Initialize();
+            
+            // Subscribe to lobby events
+            lobbyController.OnLobbyLeft
+                .Subscribe(_ => ReturnToDefalut())
+                .AddTo(disposables);
+                
+            lobbyController.OnLobbyDeleted
+                .Subscribe(_ => ReturnToDefalut())
+                .AddTo(disposables);
+                
+            lobbyController.OnKicked
+                .Subscribe(_ => ReturnToDefalut())
+                .AddTo(disposables);
+                
+            lobbyController.OnConnectionStateChanged
+                .Where(state => state == Unity.Services.Lobbies.LobbyEventConnectionState.Error)
+                .Subscribe(_ => ReturnToDefalut())
+                .AddTo(disposables);
         }
 
         private void InitializeObservableListeners()
@@ -88,7 +105,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
             listLobbyLayout.OnCreateLobby.Subscribe(_ => HandleSwitch(LayoutType.CreateLobby)).AddTo(disposables);
 
-            createLobbyLayout.OnCreate.Subscribe(HandleLobbyLayout).AddTo(disposables);
+            createLobbyLayout.OnCreate.Subscribe(HandleCreateLobby).AddTo(disposables);
 
             navigationLayout.OnBack.Subscribe(HandleReturn).AddTo(disposables);
         }
@@ -105,7 +122,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async Task SwitchLayout(LayoutType layoutType)
         {
-            // TO REFACTOR
             if (currentLayout == (ILayout)lobbyLayout)
             {
                 try
@@ -113,7 +129,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                     await CanvasUtilities.Instance.Toggle(true, LoadingText);
 
                     lobbyController.ClearPlayers();
-                    // ChatManager.Instance.LeaveChannel();
                     NetworkManager.Singleton.Shutdown();
                     await MatchmakingService.LeaveLobby();
 
@@ -158,7 +173,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
             await SwitchLayout(nextLayoutType);
         }
 
-        private async void HandleLobbyLayout(LobbyData data)
+        private async void HandleCreateLobby(LobbyData data)
         {
             try
             {
@@ -173,19 +188,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 await ShowLayoutView(currentLayout);
 
                 NetworkManager.Singleton.StartHost();
-                // ChatManager.Instance.JoinPositionalChannel(
-                //     "Test",
-                //     true, false,
-                //     true,
-                //     ChannelType.Positional,
-                //     10,
-                //     5,
-                //     5,
-                //     AudioFadeModel.InverseByDistance
-                // );
-                // ChatManager.Instance.JoinNonPositionalChannel(MatchmakingService.GetCurrentLobby().Id);
-
-                await CanvasUtilities.Instance.Toggle(false, LoadingText);
             }
             catch (Exception e)
             {
@@ -196,23 +198,6 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
 
         private async void HandleReturn(Unit unit)
         {
-            if (currentLayoutType == LayoutType.Start)
-            {
-                try
-                {
-                    await CanvasUtilities.Instance.Toggle(true, LoadingText);
-                    await SceneManager.LoadSceneAsync(AuthenticationSceneName).AsObservable();
-                    await CanvasUtilities.Instance.Toggle(false, LoadingText);
-                }
-                catch (Exception e)
-                {
-                    CanvasUtilities.Instance.ShowError(e, "Failed to return");
-                    ReturnToDefalut();
-                }
-
-                return;
-            }
-
             await ReturnToPreviousLayout();
         }
 
@@ -231,10 +216,8 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 await CanvasUtilities.Instance.Toggle(false, LoadingText);
 
                 NetworkManager.Singleton.StartClient();
-                // ChatManager.Instance.JoinNonPositionalChannel(lobby.Id);
 
                 await ShowLayoutView(currentLayout);
-
             }
             catch (Exception e)
             {
@@ -248,16 +231,15 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
             startLayout.SetButtonsInteractable(false);
 
             #if UNITY_EDITOR
-                        EditorApplication.ExitPlaymode();
+                EditorApplication.ExitPlaymode();
             #else
-                        Application.Quit();
+                Application.Quit();
             #endif
         }
 
         private async void ReturnToDefalut()
         {
             await HideLayoutView(currentLayout);
-
             await CanvasUtilities.Instance.Toggle(false, LoadingText);
 
             currentLayout = GetLayoutByType(LayoutType.Start);
@@ -272,12 +254,11 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             return layoutType switch
             {
-                LayoutType.Start => default,
-                LayoutType.ListLobby => LayoutType.Start,
-                LayoutType.Lobby => LayoutType.ListLobby,
                 LayoutType.Settings => LayoutType.Start,
+                LayoutType.ListLobby => LayoutType.Start,
                 LayoutType.CreateLobby => LayoutType.ListLobby,
-                _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
+                LayoutType.Lobby => LayoutType.ListLobby,
+                _ => LayoutType.Start
             };
         }
 
@@ -285,12 +266,12 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
         {
             return layoutType switch
             {
-                LayoutType.ListLobby => listLobbyLayout,
                 LayoutType.Start => startLayout,
-                LayoutType.Lobby => lobbyLayout,
                 LayoutType.Settings => settingsLayout,
+                LayoutType.ListLobby => listLobbyLayout,
                 LayoutType.CreateLobby => createLobbyLayout,
-                _ => throw new ArgumentOutOfRangeException(nameof(layoutType), layoutType, null)
+                LayoutType.Lobby => lobbyLayout,
+                _ => startLayout
             };
         }
     }

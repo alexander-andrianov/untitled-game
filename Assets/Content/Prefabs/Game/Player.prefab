@@ -391,6 +391,9 @@ MonoBehaviour:
   ghostDirector: {fileID: 923736630072492144}
   mainModel: {fileID: 9097433605261221858}
   playerLight: {fileID: 8232651140654671242}
+  modelRenderer: {fileID: 7910303832654249465}
+  virtualCameraPrefab: {fileID: 2161481526152492922, guid: 43fa086c1e1f74ecf851a51e9ab6fbb9,
+    type: 3}
 --- !u!114 &221669446194068780
 MonoBehaviour:
   m_ObjectHideFlags: 0

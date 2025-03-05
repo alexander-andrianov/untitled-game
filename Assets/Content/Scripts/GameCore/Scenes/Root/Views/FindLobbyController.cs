@@ -5,8 +5,9 @@ using Content.Scripts.GameCore.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UniRx;
+using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
@@ -26,14 +27,22 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
 
         public IObservable<Lobby> OnConnect => onConnect;
 
-        private async void OnEnable()
+        private void OnEnable()
         {
             InitializeListeners();
 
-            foreach (Transform child in panelsParent) Destroy(child.gameObject);
+            foreach (Transform child in panelsParent) 
+            {
+                Destroy(child.gameObject);
+            }
 
             currentLobbySpawns.Clear();
-            await FetchLobbies();
+            FetchLobbies().Forget();
+        }
+
+        private void OnDestroy()
+        {
+            disposables?.Dispose();
         }
 
         private void InitializeListeners()
@@ -46,21 +55,22 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
             onConnect.OnNext(lobby);
         }
 
-        private async void HandleRefresh(Unit unit)
+        private void HandleRefresh(Unit unit)
         {
-            await FetchLobbies();
+            FetchLobbies().Forget();
         }
 
-        private async Task FetchLobbies()
+        private async UniTask FetchLobbies()
         {
             try
             {
-                // Grab all current lobbies
                 var allLobbies = await MatchmakingService.GatherLobbies();
 
-                // Destroy all the current lobby panels which don't exist anymore.
-                // Exclude our own homes as it'll show for a brief moment after closing the room
-                var lobbyIds = allLobbies.Where(l => l.HostId != Authentication.Services.Authentication.PlayerId).Select(l => l.Id);
+                // Destroy all the current lobby panels which don't exist anymore
+                var lobbyIds = allLobbies.Where(l => l.HostId != Authentication.Services.Authentication.PlayerId)
+                    .Select(l => l.Id)
+                    .ToHashSet();
+
                 var notActive = currentLobbySpawns.Where(l => !lobbyIds.Contains(l.Lobby.Id)).ToList();
 
                 foreach (var panel in notActive)
@@ -72,6 +82,9 @@ namespace Content.Scripts.GameCore.Scenes.Root.View
                 // Update or spawn the remaining active lobbies
                 foreach (var lobby in allLobbies)
                 {
+                    if (lobby.HostId == Authentication.Services.Authentication.PlayerId)
+                        continue;
+
                     var current = currentLobbySpawns.FirstOrDefault(p => p.Lobby.Id == lobby.Id);
                     if (current != null)
                     {

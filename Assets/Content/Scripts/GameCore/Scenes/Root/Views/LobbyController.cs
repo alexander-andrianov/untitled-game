@@ -174,17 +174,19 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
                 await CanvasUtilities.Instance.Toggle(true, LoadingGameText);
                 await MatchmakingService.LockLobby();
                 
-                if (NetworkManager.Singleton != null)
-                {
-                    NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
-                }
-
-                await CanvasUtilities.Instance.Toggle(false, LoadingGameText);
+                NetworkManager.Singleton.SceneManager.OnLoadComplete += OnLoadComplete;
+                NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
             }
             catch (Exception e)
             {
                 CanvasUtilities.Instance.ShowError(e, "Failed to start the game");
             }
+        }
+        
+        private async void OnLoadComplete(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnLoadComplete;
+            await CanvasUtilities.Instance.Toggle(false, LoadingGameText);
         }
 
         private void HandleSwitchMicroButton(Unit unit)
@@ -197,6 +199,7 @@ namespace Content.Scripts.GameCore.Scenes.Root.Views
             {
                 ChatManager.Instance.UnmuteMyself();
             }
+            
             lobbyLayout.UpdateMicroSwitchButtonState(!ChatManager.Instance.IsTransmitting);
         }
 

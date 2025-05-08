@@ -10,29 +10,27 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
-  m_Name: Default Local Group
+  m_Name: Popups
   m_EditorClassIdentifier: 
-  m_GroupName: Default Local Group
-  m_GUID: 0f4fff58c72025c44b43801ee287cc5b
+  m_GroupName: Popups
+  m_GUID: e45b65daedf7c4ef49cdac2534aeb3ad
   m_SerializeEntries:
-  - m_GUID: 3ac9f0a0f403f844388fd7478bbc644d
-    m_Address: CanvasUtilities
+  - m_GUID: 467cdc77f2b2842999fff5df50c6fd67
+    m_Address: Popups/CompletePopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c2967285a66a12543a90f9d52f008f39
-    m_Address: ChatManager
+  - m_GUID: 5ec4dff086f9e4f95a864d61965df145
+    m_Address: Popups/FailPopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: da32d4cf4a340d34b8c72831da1135be
-    m_Address: NetworkingManager
+  - m_GUID: cc78beaa5ce0943dfbafa63ad8335af0
+    m_Address: Popups/AlertPopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 21cc9fe454c93404a97f32be1f8c4ede, type: 2}
   m_SchemaSet:
-    m_Schemas:
-    - {fileID: 11400000, guid: 4ad76af0d14eef34aae1b2f372035683, type: 2}
-    - {fileID: 11400000, guid: 7aeca2028c335ce4caaefb5eb42b56c1, type: 2}
+    m_Schemas: []

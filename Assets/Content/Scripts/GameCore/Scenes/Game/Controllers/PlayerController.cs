@@ -252,7 +252,6 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
                 moveDirection.y = -2f;
             }
             
-            // Sprint
             currentSpeed = playerInput.Player.Sprint.IsPressed() ? sprintSpeed : moveSpeed;
             
             // Get input

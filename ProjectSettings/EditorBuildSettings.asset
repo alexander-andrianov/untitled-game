@@ -5,9 +5,6 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: 
-    guid: 00000000000000000000000000000000
   - enabled: 1
     path: Assets/Content/Scenes/Authentication.unity
     guid: 9c88b463dfaced54fbdd985591374755
@@ -22,3 +19,6 @@ EditorBuildSettings:
       type: 2}
     com.unity.input.settings: {fileID: 11400000, guid: f1888dbd9b5272047892f054106fdebe,
       type: 2}
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: e27bad0044edf4fb2a62f3e789f20972,
+      type: 3}
+  m_UseUCBPForAssetBundles: 0

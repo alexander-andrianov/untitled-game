@@ -8,7 +8,7 @@ untitled-game is a multiplayer social game that blends teamwork, deception, and 
 
 One team must blend in, disguise themselves, and avoid detection — while the other team works together to uncover and eliminate them. The match evolves in real time as players gather clues, complete objectives, and interact with the environment to shift the balance of power.
 
-The game supports both online multiplayer and co-op modes, with flexible match sizes and dedicated server support.
+The game supports co-op multiplayer with flexible match sizes and host-client architecture.
 
 ## 🔑 Key Features
 

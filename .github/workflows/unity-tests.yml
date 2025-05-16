@@ -14,9 +14,6 @@ jobs:
     steps:
       - name: Unity - Activate
         uses: game-ci/unity-activate@v2.0.0
-	with: 
- 	 unityVersion: 6000.0.23f1
-   	 UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
      
       - uses: actions/checkout@v3
 

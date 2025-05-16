@@ -20,6 +20,16 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c6ba10f0bbcb4a0daeb4e4caf317ade
+    m_Address: PopupManager
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8adfd34d42cfd469abe452cee55fd57b
+    m_Address: ScreenManager
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c2967285a66a12543a90f9d52f008f39
     m_Address: ChatManager
     m_ReadOnly: 0

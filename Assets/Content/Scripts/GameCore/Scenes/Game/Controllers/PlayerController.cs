@@ -8,12 +8,16 @@ using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.Playables;
-using System.Collections;
 
 namespace Content.Scripts.GameCore.Scenes.Game.Controllers
 {
     public class PlayerController : NetworkBehaviour
     {
+        private static Dictionary<ulong, PlayerController> allPlayers = new Dictionary<ulong, PlayerController>();
+        private static List<PlayerController> alivePlayers = new List<PlayerController>();
+        
+        private static int currentSpectatorIndex = -1;
+        
         [Header("Movement Settings")]
         [SerializeField] private float moveSpeed = 7f;
         [SerializeField] private float sprintSpeed = 10f;
@@ -37,47 +41,41 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         private PlayableDirector activeDirector;
         private Transform localTransform;
         private Vector3 currentMovementInput;
-        private bool isInitialized;
         private CharacterController characterController;
         private NetworkTransform networkTransform;
         private NetworkVariable<float> verticalRotation = new NetworkVariable<float>(writePerm: NetworkVariableWritePermission.Owner);
         private Vector3 moveDirection = Vector3.zero;
+        private NetworkVariable<bool> isDead = new NetworkVariable<bool>();
+        
         private float currentSpeed;
         private bool isGrounded;
-        private NetworkVariable<bool> isDead = new NetworkVariable<bool>();
-        private static Dictionary<ulong, PlayerController> allPlayers = new Dictionary<ulong, PlayerController>();
-        private static List<PlayerController> alivePlayers = new List<PlayerController>();
-        private static int currentSpectatorIndex = -1;
+        private bool isInitialized;
 
         public override void OnNetworkSpawn()
         {
             Initialize();
             
-            // Добавляем игрока в словарь всех игроков и список живых
             allPlayers[NetworkObjectId] = this;
             alivePlayers.Add(this);
             Debug.Log($"Added player {NetworkObjectId} to players lists. Total players: {allPlayers.Count}, Alive: {alivePlayers.Count}");
 
-            // Подписываемся на изменение isDead
             isDead.OnValueChanged += OnDeadStateChanged;
         }
 
         private void OnDeadStateChanged(bool previousValue, bool newValue)
         {
-            if (newValue) // Если игрок умер
+            if (newValue)
             {
                 if (alivePlayers.Contains(this))
                 {
                     alivePlayers.Remove(this);
                     Debug.Log($"Player {NetworkObjectId} died. Remaining alive: {alivePlayers.Count}");
                     
-                    // Отключаем управление для мертвого игрока
                     if (IsOwner)
                     {
                         playerInput.Disable();
                         characterController.enabled = false;
                         
-                        // Если есть живые игроки, начинаем наблюдение за первым из них
                         if (alivePlayers.Count > 0)
                         {
                             currentSpectatorIndex = 0;
@@ -92,7 +90,7 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         {
             isDead.OnValueChanged -= OnDeadStateChanged;
             
-            if (IsSpawned) // Проверяем, что объект все еще заспавнен
+            if (IsSpawned)
             {
                 allPlayers.Remove(NetworkObjectId);
                 alivePlayers.Remove(this);
@@ -156,13 +154,11 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
                 return;
             }
 
-            // Отключаем камеру для всех игроков по умолчанию
             playerCamera.Priority = 0;
             playerCamera.enabled = false;
 
             if (IsOwner)
             {
-                // Включаем камеру только для владельца
                 playerCamera.Priority = 10;
                 playerCamera.enabled = true;
                 Debug.Log($"Initialized camera for player {NetworkManager.Singleton.LocalClientId}");
@@ -200,7 +196,6 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
 
             Debug.Log($"Updating spectator camera. Alive players: {currentAlivePlayers.Count}, Current index: {currentSpectatorIndex}");
 
-            // Отключаем все камеры только для мертвого игрока
             if (isDead.Value)
             {
                 foreach (var player in allPlayers.Values)
@@ -213,7 +208,6 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
                     }
                 }
 
-                // Если остался только один игрок, включаем его камеру
                 if (currentAlivePlayers.Count == 1)
                 {
                     var alivePlayer = currentAlivePlayers[0];
@@ -227,7 +221,6 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
                     return;
                 }
 
-                // Включаем камеру текущего наблюдаемого игрока
                 if (currentSpectatorIndex >= 0 && currentSpectatorIndex < currentAlivePlayers.Count)
                 {
                     var targetPlayer = currentAlivePlayers[currentSpectatorIndex];
@@ -254,28 +247,22 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
             
             currentSpeed = playerInput.Player.Sprint.IsPressed() ? sprintSpeed : moveSpeed;
             
-            // Get input
             currentMovementInput = playerInput.Player.Move.ReadValue<Vector2>();
-            float moveX = currentMovementInput.x;
-            float moveZ = currentMovementInput.y;
             
-            // Calculate movement direction
-            Vector3 move = transform.right * moveX + transform.forward * moveZ;
+            var moveX = currentMovementInput.x;
+            var moveZ = currentMovementInput.y;
+            var move = transform.right * moveX + transform.forward * moveZ;
             
-            // Apply movement
             characterController.Move(move * currentSpeed * Time.deltaTime);
             
-            // Jump
             if (playerInput.Player.Jump.WasPressedThisFrame() && isGrounded)
             {
                 moveDirection.y = Mathf.Sqrt(jumpForce * -2f * gravity);
             }
             
-            // Apply gravity
             moveDirection.y += gravity * Time.deltaTime;
             characterController.Move(moveDirection * Time.deltaTime);
             
-            // Update network transform
             if (networkTransform != null)
             {
                 networkTransform.InLocalSpace = false;
@@ -287,29 +274,24 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
         {
             if (playerCamera == null) return;
             
-            // Get mouse input
-            Vector2 lookInput = playerInput.Player.Look.ReadValue<Vector2>();
-            float mouseX = lookInput.x * mouseSensitivity;
-            float mouseY = lookInput.y * mouseSensitivity;
+            var lookInput = playerInput.Player.Look.ReadValue<Vector2>();
+            var mouseX = lookInput.x * mouseSensitivity;
+            var mouseY = lookInput.y * mouseSensitivity;
             
-            // Rotate camera up/down
-            if (IsOwner) // Только владелец может изменять verticalRotation
+            if (IsOwner)
             {
                 verticalRotation.Value -= mouseY;
                 verticalRotation.Value = Mathf.Clamp(verticalRotation.Value, -maxLookAngle, maxLookAngle);
             }
             
             playerCamera.transform.localRotation = Quaternion.Euler(verticalRotation.Value, 0f, 0f);
-            
-            // Rotate player left/right
             transform.Rotate(Vector3.up * mouseX);
         }
 
-        private async void HandleKill()
+        private async UniTask HandleKill()
         {
             if (isDead.Value) return;
 
-            // Сначала отключаем все компоненты управления
             if (IsOwner)
             {
                 playerInput.Disable();
@@ -325,7 +307,6 @@ namespace Content.Scripts.GameCore.Scenes.Game.Controllers
                 await RunPlayableDirectorAsync(ghostDirector);
             }
 
-            // Только после всех визуальных эффектов меняем состояние смерти
             isDead.Value = true;
         }
 

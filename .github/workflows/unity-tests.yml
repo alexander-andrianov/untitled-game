@@ -12,12 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+    
       - name: Unity - Activate
         uses: game-ci/unity-activate@v2.0.0
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-     
-      - uses: actions/checkout@v3
 
       - name: Cache Library
         uses: actions/cache@v3

@@ -8,11 +8,10 @@ on:
 
 jobs:
   test:
-    name: Run Unity Tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Cache Library
@@ -23,13 +22,20 @@ jobs:
           restore-keys: |
             Library-
 
-      - name: Run tests
-        uses: game-ci/unity-test-runner@v4
+      - name: Activate Unity
+        uses: game-ci/unity-activate@v2
+        with:
+          unityVersion: 6000.0.23f1
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Run Tests
+        uses: game-ci/unity-test-runner@v4
         with:
+          unityVersion: 6000.0.23f1
           projectPath: .
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          unityVersion: 6000.0.30f1
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}

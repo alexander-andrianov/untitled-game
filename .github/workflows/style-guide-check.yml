@@ -10,7 +10,7 @@ on:
 
 jobs:
   style-check:
-    name: Style check (dotnet-format)
+    name: Style Check
     runs-on: ubuntu-latest
 
     steps:
@@ -29,19 +29,14 @@ jobs:
           dotnet tool install --global dotnet-format
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Restore NuGet packages
-        run: dotnet restore
-
       - name: Find first *.sln file
         id: find_sln
         run: |
           SOLUTION_PATH=$(find . -type f -name '*.sln' | head -n1)
           echo "SOLUTION_PATH=$SOLUTION_PATH" >> $GITHUB_ENV
 
-      - name: Verify code style (dotnet-format)
-        run: |
-          if [ -z "${{ env.SOLUTION_PATH }}" ]; then
-            echo "No .sln file found, aborting style check."
-            exit 1
-          fi
-          dotnet format "${{ env.SOLUTION_PATH }}" --verify-no-changes --verbosity minimal
+      - name: Restore NuGet packages
+        run: dotnet restore "${{ env.SOLUTION_PATH }}"
+
+      - name: Verify code style
+        run: dotnet format "${{ env.SOLUTION_PATH }}" --verify-no-changes --verbosity minimal

@@ -1,4 +1,4 @@
-name: C# Style Check
+name: Style Guide Check
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   style-check:
-    name: Проверка стиля C# (dotnet-format)
+    name: Style check (dotnet-format)
     runs-on: ubuntu-latest
 
     steps:
@@ -27,21 +27,21 @@ jobs:
       - name: Install dotnet-format
         run: |
           dotnet tool install --global dotnet-format
-          echo "${{ runner.tool_cache }}/dotnet-tools/bin" >> $GITHUB_PATH
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Restore NuGet packages
         run: dotnet restore
 
-      - name: Find first *.csproj file
-        id: find_proj
+      - name: Find first *.sln file
+        id: find_sln
         run: |
-          echo "PROJECT_PATH=$(find . -type f -name '*.csproj' | head -n1)" >> $GITHUB_ENV
+          SOLUTION_PATH=$(find . -type f -name '*.sln' | head -n1)
+          echo "SOLUTION_PATH=$SOLUTION_PATH" >> $GITHUB_ENV
 
       - name: Verify code style (dotnet-format)
         run: |
-          if [ -z "$PROJECT_PATH" ]; then
-            echo "No .csproj found, aborting style check."
+          if [ -z "${{ env.SOLUTION_PATH }}" ]; then
+            echo "No .sln file found, aborting style check."
             exit 1
           fi
-          echo "Running dotnet format on $PROJECT_PATH"
-          dotnet format "$PROJECT_PATH" --verify-no-changes --verbosity minimal
+          dotnet format "${{ env.SOLUTION_PATH }}" --verify-no-changes --verbosity minimal
